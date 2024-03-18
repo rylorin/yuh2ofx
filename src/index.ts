@@ -1,5 +1,39 @@
+import crypto from "node:crypto";
+import { exit } from "node:process";
 import { Output, Page, default as PdfParser } from "pdf2json";
 
+/* https://github.com/sindresorhus/hash-object/blob/main/index.js */
+function normalizeObject(object: Record<string, any>): any {
+  return Object.fromEntries(
+    Object.entries(object).map(([key, value]) => [
+      key.normalize("NFD"),
+      normalizeObject(value), // eslint-disable-line @typescript-eslint/no-unsafe-argument
+    ]),
+  );
+}
+
+/* https://github.com/sindresorhus/hash-object/blob/main/index.js */
+function hashObject(
+  object: Record<string, any>,
+  { encoding = "hex", algorithm = "sha512" } = {},
+): string {
+  if (typeof object != "object") {
+    throw new TypeError("Expected an object");
+  }
+
+  const normalizedObject = normalizeObject(object);
+
+  const hash = crypto
+    .createHash(algorithm)
+    .update(JSON.stringify(normalizedObject), "utf8")
+    .digest(encoding as crypto.BinaryToTextEncoding);
+
+  return hash;
+}
+
+/**
+ * Header of a currency's statements report
+ */
 type Header = {
   currency: string;
   dtFrom: Date;
@@ -10,12 +44,18 @@ type Header = {
   debitSum: number;
 };
 
+/**
+ * Credit or debit statement
+ */
 export const CreditDebit = {
   Credit: "Credit",
   Debit: "Debit",
 } as const;
 export type CreditDebit = (typeof CreditDebit)[keyof typeof CreditDebit];
 
+/**
+ * One sigle statement
+ */
 type Statement = {
   date: Date;
   information: string;
@@ -26,7 +66,14 @@ type Statement = {
   balance: number;
 };
 
-class MyApp {
+const STATEMENTS_REPORT_HEADER = "EXTRAIT DE COMPTE en";
+const TRANSFERT = "Transfert - ";
+const PLASTIC_CARD = "Paiement par carte de débit - ";
+
+/**
+ * Extract statements from a PDF report and generate the corresponding OFX document
+ */
+class Pdf2Ofx {
   private readonly pdfreader: PdfParser;
   private readonly date_pattern: RegExp;
   private readonly fixed_pattern: RegExp;
@@ -43,15 +90,25 @@ class MyApp {
     );
 
     this.date_pattern = new RegExp("^[0-3][0-9]\\.[0-1][0-9]\\.202[3-9]$");
-    this.fixed_pattern = new RegExp("^[0-9]+\\.[0-9][0-9]$");
+    this.fixed_pattern = new RegExp("^[-+]?[0-9]+\\.[0-9][0-9]$");
     this.integer_pattern = new RegExp("^[0-9]+$");
-    this.currency = currency;
+    this.currency = currency.toUpperCase();
   }
 
+  /**
+   * Extract statements from given file name
+   * @param filename Input file name
+   * @returns nothing
+   */
   public run(filename: string): Promise<void> {
     return this.pdfreader.loadPDF(filename);
   }
 
+  /**
+   * Convert a date to OFX format
+   * @param datetime date to format
+   * @returns date as string
+   */
   private formatDate(datetime: Date): string {
     const value = datetime.toISOString();
     const year = parseInt(value.substring(0, 4));
@@ -86,10 +143,15 @@ class MyApp {
     return result + " " + time + " UTC";
   }
 
-  private isStartOfCurrencyStatements(page: Page): string | undefined {
+  /**
+   *
+   * @param page PDF page to scan
+   * @returns
+   */
+  private findStartOfStatements(page: Page): string | undefined {
     const idx = page.Texts.findIndex((text) => {
       const idx = text.R.findIndex(
-        (run) => decodeURIComponent(run.T) == "EXTRAIT DE COMPTE en",
+        (run) => decodeURIComponent(run.T) == STATEMENTS_REPORT_HEADER,
       );
       return idx >= 0;
     });
@@ -97,11 +159,17 @@ class MyApp {
     return undefined;
   }
 
-  private filterPagesForCurrency(pages: Page[], currency: string): Page[] {
+  /**
+   * Extract pages related to a given currency
+   * @param pages PDF pages
+   * @param currency Currency to extract
+   * @returns PDF pages
+   */
+  private extractPagesForCurrency(pages: Page[], currency: string): Page[] {
     let activeCurrency: string | undefined;
     const result: Page[] = [];
     pages.forEach((page) => {
-      const isStart = this.isStartOfCurrencyStatements(page);
+      const isStart = this.findStartOfStatements(page);
       // console.log("filterPagesForCurrency", activeCurrency, isStart);
       if (isStart == currency) {
         activeCurrency = isStart;
@@ -115,13 +183,11 @@ class MyApp {
     return result;
   }
 
-  private displayPage(page: Page): void {
-    console.log("displaypage");
-    page.Texts.forEach((text) =>
-      text.R.forEach((run) => console.log(decodeURIComponent(run.T))),
-    );
-  }
-
+  /**
+   * Extract text data from PDF page
+   * @param page PDF Page
+   * @returns array of strings
+   */
   private extractTextsFromPage(page: Page): string[] {
     let result: string[] = [];
     page.Texts.forEach((text) => {
@@ -130,6 +196,11 @@ class MyApp {
     return result;
   }
 
+  /**
+   * Find position of first statement in a page
+   * @param texts Text to scan
+   * @returns First statement position
+   */
   private indexOfFirstStatement(texts: string[]): number | undefined {
     let idx = 0;
     while (idx < texts.length) {
@@ -147,25 +218,35 @@ class MyApp {
     }
   }
 
+  /**
+   * Extract summary from page related to the current currency
+   * @param page PDF page to parse
+   * @returns Header if found, undefined otherwise
+   */
   private parsePageHeader(page: Page): Header | undefined {
     const texts: string[] = this.extractTextsFromPage(page);
-    const idx = texts.findIndex((item) => item == "EXTRAIT DE COMPTE en");
+    const idx = texts.findIndex((item) => item == STATEMENTS_REPORT_HEADER);
     if (idx >= 0) {
       const header: Header = {
         currency: texts[idx + 1],
         dtFrom: this.string2date(texts[idx + 2].slice(-10)),
         dtTo: this.string2date(texts[idx + 8].slice(-10)),
-        initBalance: parseFloat(texts[idx + 3]),
-        finalBalance: parseFloat(texts[idx + 9]),
-        debitSum: parseFloat(texts[idx + 5]),
-        creditSum: parseFloat(texts[idx + 7]),
+        initBalance: parseFloat(texts[idx + 3].replaceAll("'", "")),
+        finalBalance: parseFloat(texts[idx + 9].replaceAll("'", "")),
+        debitSum: parseFloat(texts[idx + 5].replaceAll(",", "")),
+        creditSum: parseFloat(texts[idx + 7].replaceAll(",", "")),
       };
-      // console.log(texts.slice(idx, idx + 20), header);
+      // console.error(texts.slice(idx, idx + 8), header);
       return header;
     }
     return undefined;
   }
 
+  /**
+   * Convert a date from Yuh format
+   * @param s Date as string
+   * @returns Parsed Date
+   */
   private string2date(s: string): Date {
     const dd = parseInt(s.slice(0, 2));
     const mm = parseInt(s.slice(3, 5));
@@ -173,6 +254,13 @@ class MyApp {
     return new Date(yy, mm - 1, dd, 12);
   }
 
+  /**
+   * Parse one statement from text
+   * @param texts Text to parse
+   * @param idx Start position
+   * @param previousBalance Previous balance amount
+   * @returns Parsed statement and next position
+   */
   private extractOneStatement(
     texts: string[],
     idx: number,
@@ -184,15 +272,24 @@ class MyApp {
       let j = idx + 2;
       while (j < texts.length) {
         const r = texts[j - 1].match(this.integer_pattern);
-        const a = texts[j].match(this.fixed_pattern);
+        const a = texts[j].replaceAll("'", "").match(this.fixed_pattern);
         const dv = texts[j + 1].match(this.date_pattern);
-        const b = texts[j + 2].match(this.fixed_pattern);
+        const b = texts[j + 2].replaceAll("'", "").match(this.fixed_pattern);
         if (a && dv && b) {
           // Statement pattern
           // console.log("extractOneStatement", texts.slice(idx, j + 3));
-          const information: string = texts
+          let information: string = texts
             .slice(idx + 1, r ? j - 1 : j)
-            .join(" ");
+            .join(" ")
+            .replaceAll("È", "é")
+            .replaceAll("Í", "ê");
+          if (information.startsWith(TRANSFERT)) {
+            information = information.substring(TRANSFERT.length);
+          } else if (information.startsWith(PLASTIC_CARD)) {
+            information = information.substring(PLASTIC_CARD.length);
+            if (information.startsWith("**** "))
+              information = information.substring(12);
+          }
           const amount = parseFloat(a[0]);
           const finalBalance = parseFloat(b[0]);
           let credit: CreditDebit;
@@ -200,14 +297,14 @@ class MyApp {
           if (
             Math.round((previousBalance + amount) * 100) / 100 ==
             finalBalance
-          )
+          ) {
             credit = CreditDebit.Credit;
-          else if (
+          } else if (
             Math.round((previousBalance - amount) * 100) / 100 ==
             finalBalance
-          )
+          ) {
             credit = CreditDebit.Debit;
-          else {
+          } else {
             console.error(
               previousBalance,
               amount,
@@ -215,8 +312,7 @@ class MyApp {
               previousBalance + amount,
               previousBalance - amount,
             );
-            throw "Unconsistent Credit/Debit statement.";
-            credit = CreditDebit.Credit;
+            throw Error("Unconsistent Credit/Debit statement.");
           }
           const statement: Statement = {
             date: this.string2date(d[0]),
@@ -227,6 +323,7 @@ class MyApp {
             balance: finalBalance,
             information,
           };
+          if (!statement.reference) statement.reference = hashObject(statement);
           return {
             statement,
             index: j + 3,
@@ -246,6 +343,12 @@ class MyApp {
     };
   }
 
+  /**
+   * Parse all statements from a given PDF page
+   * @param page PDF page to parse
+   * @param previousBalance Previous balance value
+   * @returns Parsed statements and final balance
+   */
   private extractStatementsFromPage(
     page: Page,
     previousBalance: number,
@@ -254,6 +357,7 @@ class MyApp {
     const statements: Statement[] = [];
     let idx = this.indexOfFirstStatement(texts);
     if (idx) {
+      // console.error("extractStatementsFromPage", texts.slice(idx, idx + 8));
       while (idx < texts.length) {
         const parsed = this.extractOneStatement(texts, idx, previousBalance);
         idx = parsed.index;
@@ -264,11 +368,15 @@ class MyApp {
     return { statements, finalBalance: previousBalance };
   }
 
+  /**
+   * Parse statements from a given pages set
+   * @param pages PDF pages to parse
+   * @returns headers and statements
+   */
   private extractStatementsFromPages(pages: Page[]): {
     header: Header | undefined;
     statements: Statement[];
   } {
-    let result = "";
     let statements: Statement[] = [];
 
     const header = this.parsePageHeader(pages[0]);
@@ -283,26 +391,45 @@ class MyApp {
         statements = statements.concat(parsed.statements);
         previousBalance = parsed.finalBalance;
       }
-      // console.log("all statements", statements);
+      // console.error("all statements", statements);
       // consistency checks
-      const debits = statements.reduce(
-        (p, item) => (item.credit == CreditDebit.Credit ? p : p + item.amount),
-        0,
-      );
-      const credits = statements.reduce(
-        (p, item) => (item.credit == CreditDebit.Credit ? p + item.amount : p),
-        0,
-      );
-      if (header.debitSum != debits) throw "Unconsistent total debits.";
-      if (header.creditSum != credits) throw "Unconsistent total credits.";
+      const debits =
+        Math.round(
+          statements.reduce(
+            (p, item) =>
+              item.credit == CreditDebit.Credit ? p : p + item.amount,
+            0,
+          ) * 100,
+        ) / 100;
+      const credits =
+        Math.round(
+          statements.reduce(
+            (p, item) =>
+              item.credit == CreditDebit.Credit ? p + item.amount : p,
+            0,
+          ) * 100,
+        ) / 100;
+      if (header.debitSum != debits) {
+        console.error("Unconsistent total debits.", debits, header);
+        throw Error("Unconsistent total debits.");
+      }
+      if (header.creditSum != credits) {
+        console.error("Unconsistent total credits.", credits, header);
+        throw Error("Unconsistent total credits.");
+      }
       if (header.finalBalance != statements[statements.length - 1].balance)
-        throw "Unconsistent final balance.";
+        throw Error("Unconsistent final balance.");
     }
 
     return { header, statements };
   }
 
-  public outputOfxHeader(parsed: {
+  /**
+   * Returns OFX file header
+   * @param _parsed unused
+   * @returns OFX text
+   */
+  public outputOfxHeader(_parsed: {
     header: Header | undefined;
     statements: Statement[];
   }): string {
@@ -331,16 +458,20 @@ class MyApp {
     return ofx;
   }
 
+  /**
+   * Returns parsed statements as OFX text
+   * @param parsed Result from PDF doc pasing
+   * @returns OFX text
+   */
   public outputOfxStatements(parsed: {
     header: Header | undefined;
     statements: Statement[];
   }): string {
     const { header, statements } = parsed;
-    let ofx: string = "";
+    let ofx = "";
     if (header) {
-      ofx = `
-      <STMTRS>
-        <CURDEF>EUR</CURDEF>
+      ofx = `      <STMTRS>
+        <CURDEF>${header.currency}</CURDEF>
         <BANKACCTFROM>
           <BANKID>SWQBCHZZXXX</BANKID>
           <ACCTID>CH12 XXX</ACCTID>
@@ -372,7 +503,12 @@ class MyApp {
     return ofx;
   }
 
-  public outputOfxTrailer(parsed: {
+  /**
+   * Returns OFX trailer
+   * @param _parsed unused
+   * @returns OFX text
+   */
+  public outputOfxTrailer(_parsed: {
     header: Header | undefined;
     statements: Statement[];
   }): string {
@@ -384,9 +520,13 @@ class MyApp {
     return ofx;
   }
 
+  /**
+   * Parse PDF data and output corresponding OFX result
+   * @param pdfData PDF file
+   */
   public handlePdfFile(pdfData: Output): void {
     const parsed = this.extractStatementsFromPages(
-      this.filterPagesForCurrency(pdfData.Pages, this.currency),
+      this.extractPagesForCurrency(pdfData.Pages, this.currency),
     );
     console.log(this.outputOfxHeader(parsed));
     console.log(this.outputOfxStatements(parsed));
@@ -394,5 +534,8 @@ class MyApp {
   }
 }
 
-const app = new MyApp(process.argv[3]);
-app.run(process.argv[2]);
+const app = new Pdf2Ofx(process.argv[3]);
+app.run(process.argv[2]).catch((err: Error) => {
+  console.error(err);
+  exit(1);
+});

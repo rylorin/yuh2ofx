@@ -19,8 +19,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "pdf2json": "^3.0.5",
-    "pdfreader": "^3.0.2"
+    "pdf2json": "^3.0.5"
   },
   "devDependencies": {
     "@types/node": "^20.11.28",
