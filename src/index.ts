@@ -264,12 +264,15 @@ class MyApp {
     return { statements, finalBalance: previousBalance };
   }
 
-  private exportStatementsFromPages(pages: Page[]): string {
+  private extractStatementsFromPages(pages: Page[]): {
+    header: Header | undefined;
+    statements: Statement[];
+  } {
     let result = "";
     let statements: Statement[] = [];
-    const len = pages.length;
 
     const header = this.parsePageHeader(pages[0]);
+    const len = pages.length;
     if (header) {
       let previousBalance = header.initBalance;
       for (let i = 0; i < len; i++) {
@@ -280,51 +283,116 @@ class MyApp {
         statements = statements.concat(parsed.statements);
         previousBalance = parsed.finalBalance;
       }
-      console.log("all statements", statements);
-      statements.forEach((stmt) => {
-        result = result.concat(`  <STMTTRN>
-    <TRNTYPE>DEBIT</TRNTYPE>
-    <DTPOSTED>20231130</DTPOSTED>
-    <TRNAMT>-0.49</TRNAMT>
-    <FITID>202311300127</FITID>
-    <NAME>GOOGLE*GOOGLE PLAY APP G.CO-HELPPAY# D02 R296 G.CO-HELPPAY# </NAME>
-  </STMTTRN>
-`);
-      });
+      // console.log("all statements", statements);
+      // consistency checks
+      const debits = statements.reduce(
+        (p, item) => (item.credit == CreditDebit.Credit ? p : p + item.amount),
+        0,
+      );
+      const credits = statements.reduce(
+        (p, item) => (item.credit == CreditDebit.Credit ? p + item.amount : p),
+        0,
+      );
+      if (header.debitSum != debits) throw "Unconsistent total debits.";
+      if (header.creditSum != credits) throw "Unconsistent total credits.";
+      if (header.finalBalance != statements[statements.length - 1].balance)
+        throw "Unconsistent final balance.";
     }
-    return result;
+
+    return { header, statements };
   }
 
-  public outputOfxHeader(): void {
-    console.log(`<?xml version="1.0" encoding="utf-8" ?>
-  <?OFX OFXHEADER="200" VERSION="202" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
-  <OFX>
-    <SIGNONMSGSRSV1>
-      <SONRS>
-        <STATUS>
-          <CODE>0</CODE>
-          <SEVERITY>INFO</SEVERITY>
-        </STATUS>
-        <DTSERVER>${this.formatDate(new Date())}</DTSERVER>
-        <LANGUAGE>ENG</LANGUAGE>
-      </SONRS>
-    </SIGNONMSGSRSV1>
-    <BANKMSGSRSV1>
-    `);
+  public outputOfxHeader(parsed: {
+    header: Header | undefined;
+    statements: Statement[];
+  }): string {
+    const ofx = `<?xml version="1.0" encoding="utf-8" ?>
+<?OFX OFXHEADER="200" VERSION="202" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
+<OFX>
+  <SIGNONMSGSRSV1>
+    <SONRS>
+      <STATUS>
+        <CODE>0</CODE>
+        <SEVERITY>INFO</SEVERITY>
+      </STATUS>
+      <DTSERVER>${this.formatDate(new Date())}</DTSERVER>
+      <LANGUAGE>ENG</LANGUAGE>
+    </SONRS>
+  </SIGNONMSGSRSV1>
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <TRNUID>0</TRNUID>
+      <STATUS>
+        <CODE>0</CODE>
+        <SEVERITY>INFO</SEVERITY>
+      </STATUS>
+    `;
+    // console.log(ofx);
+    return ofx;
   }
 
-  public outputOfxTrailer(): void {
-    console.log(`	</BANKMSGSRSV1>
+  public outputOfxStatements(parsed: {
+    header: Header | undefined;
+    statements: Statement[];
+  }): string {
+    const { header, statements } = parsed;
+    let ofx: string = "";
+    if (header) {
+      ofx = `
+      <STMTRS>
+        <CURDEF>EUR</CURDEF>
+        <BANKACCTFROM>
+          <BANKID>SWQBCHZZXXX</BANKID>
+          <ACCTID>CH12 XXX</ACCTID>
+          <ACCTTYPE>TRADING</ACCTTYPE>
+        </BANKACCTFROM>
+        <BANKTRANLIST>
+          <DTSTART>${this.formatDate(header.dtFrom)}</DTSTART>
+          <DTEND>${this.formatDate(header.dtTo)}</DTEND>
+`;
+      statements.forEach((stmt) => {
+        ofx += `          <STMTTRN>
+            <TRNTYPE>${stmt.credit.toUpperCase()}</TRNTYPE>
+            <DTPOSTED>${this.formatDate(stmt.date)}</DTPOSTED>
+            <TRNAMT>${stmt.credit == CreditDebit.Credit ? stmt.amount : -stmt.amount}</TRNAMT>
+            <FITID>${stmt.reference}</FITID>
+            <NAME>${stmt.information}</NAME>
+          </STMTTRN>
+`;
+      });
+      ofx += `        </BANKTRANLIST>
+        <LEDGERBAL>
+          <BALAMT>${header.finalBalance}</BALAMT>
+          <DTASOF>${this.formatDate(header.dtTo)}</DTASOF>
+        </LEDGERBAL>
+      </STMTRS>
+`;
+    }
+    // console.log(ofx);
+    return ofx;
+  }
+
+  public outputOfxTrailer(parsed: {
+    header: Header | undefined;
+    statements: Statement[];
+  }): string {
+    const ofx = `    </STMTTRNRS>
+  </BANKMSGSRSV1>
 </OFX>
-`);
+`;
+    // console.log(ofx);
+    return ofx;
   }
 
   public handlePdfFile(pdfData: Output): void {
-    this.exportStatementsFromPages(
+    const parsed = this.extractStatementsFromPages(
       this.filterPagesForCurrency(pdfData.Pages, this.currency),
     );
+    console.log(this.outputOfxHeader(parsed));
+    console.log(this.outputOfxStatements(parsed));
+    console.log(this.outputOfxTrailer(parsed));
   }
 }
 
-const app = new MyApp("EUR");
+const app = new MyApp(process.argv[3]);
 app.run(process.argv[2]);
