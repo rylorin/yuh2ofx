@@ -10,12 +10,18 @@ type Header = {
   debitSum: number;
 };
 
+export const CreditDebit = {
+  Credit: "Credit",
+  Debit: "Debit",
+} as const;
+export type CreditDebit = (typeof CreditDebit)[keyof typeof CreditDebit];
+
 type Statement = {
   date: Date;
   information: string;
   reference: string;
-  debit: number;
-  credit: number;
+  credit: CreditDebit;
+  amount: number;
   valueDate: Date;
   balance: number;
 };
@@ -25,8 +31,9 @@ class MyApp {
   private readonly date_pattern: RegExp;
   private readonly fixed_pattern: RegExp;
   private readonly integer_pattern: RegExp;
+  private readonly currency: string;
 
-  constructor() {
+  constructor(currency: string) {
     this.pdfreader = new PdfParser();
     this.pdfreader.on("pdfParser_dataError", (errData) =>
       console.error(errData),
@@ -35,16 +42,29 @@ class MyApp {
       this.handlePdfFile(pdfData),
     );
 
-    this.date_pattern = new RegExp("[0-3][0-9]\\.[0-1][0-9]\\.202[3-9]");
-    this.fixed_pattern = new RegExp("[0-9]+\\.[0-9][0-9]");
-    this.integer_pattern = new RegExp("[0-9]+");
+    this.date_pattern = new RegExp("^[0-3][0-9]\\.[0-1][0-9]\\.202[3-9]$");
+    this.fixed_pattern = new RegExp("^[0-9]+\\.[0-9][0-9]$");
+    this.integer_pattern = new RegExp("^[0-9]+$");
+    this.currency = currency;
   }
 
-  public run(filename: string, currency: string): void {
-    this.pdfreader.loadPDF(process.argv[2]);
+  public run(filename: string): Promise<void> {
+    return this.pdfreader.loadPDF(filename);
   }
 
   private formatDate(datetime: Date): string {
+    const value = datetime.toISOString();
+    const year = parseInt(value.substring(0, 4));
+    const month = parseInt(value.substring(5, 7));
+    const day = parseInt(value.substring(8, 10));
+    const result: string =
+      year.toString() +
+      (month < 10 ? "0" + month : month) +
+      (day < 10 ? "0" + day : day);
+    return result;
+  }
+
+  private formatDateTime(datetime: Date): string {
     const value = datetime.toISOString();
     const year = parseInt(value.substring(0, 4));
     const month = parseInt(value.substring(5, 7));
@@ -111,10 +131,9 @@ class MyApp {
   }
 
   private indexOfFirstStatement(texts: string[]): number | undefined {
-    let found = false;
     let idx = 0;
-    while (!found) {
-      let j = texts.indexOf("Date", idx);
+    while (idx < texts.length) {
+      const j = texts.indexOf("Date", idx);
       if (j >= idx) {
         if (
           texts[idx + 1] == "Information" &&
@@ -128,7 +147,8 @@ class MyApp {
     }
   }
 
-  private parsePageHeader(texts: string[]): Header | undefined {
+  private parsePageHeader(page: Page): Header | undefined {
+    const texts: string[] = this.extractTextsFromPage(page);
     const idx = texts.findIndex((item) => item == "EXTRAIT DE COMPTE en");
     if (idx >= 0) {
       const header: Header = {
@@ -156,83 +176,126 @@ class MyApp {
   private extractOneStatement(
     texts: string[],
     idx: number,
-  ): [Statement | undefined, number] {
+    previousBalance: number,
+  ): { statement: Statement | undefined; index: number; finalBalance: number } {
     const d = texts[idx].match(this.date_pattern);
     if (d) {
-      console.log(texts[idx], texts[idx + 1], d);
+      // console.log(texts[idx], texts[idx + 1], d);
       let j = idx + 2;
       while (j < texts.length) {
-        console.log(
-          `'${texts[j - 1]}' '${texts[j]}' '${texts[j + 1]}' '${texts[j + 2]}'`,
-        );
         const r = texts[j - 1].match(this.integer_pattern);
         const a = texts[j].match(this.fixed_pattern);
         const dv = texts[j + 1].match(this.date_pattern);
         const b = texts[j + 2].match(this.fixed_pattern);
-        console.log("extractOneStatement", r, a, dv, b);
         if (a && dv && b) {
           // Statement pattern
+          // console.log("extractOneStatement", texts.slice(idx, j + 3));
           const information: string = texts
             .slice(idx + 1, r ? j - 1 : j)
             .join(" ");
-          return [
-            {
-              date: this.string2date(d[0]),
-              reference: r ? r[0] : "",
-              debit: parseFloat(a[0]),
-              credit: -parseFloat(a[0]),
-              valueDate: this.string2date(dv[0]),
-              balance: parseFloat(b[0]),
-              information,
-            },
-            j + 5,
-          ];
+          const amount = parseFloat(a[0]);
+          const finalBalance = parseFloat(b[0]);
+          let credit: CreditDebit;
+          // Multiply each amount by 100 to get integer number and avoid floating point errors
+          if (
+            Math.round((previousBalance + amount) * 100) / 100 ==
+            finalBalance
+          )
+            credit = CreditDebit.Credit;
+          else if (
+            Math.round((previousBalance - amount) * 100) / 100 ==
+            finalBalance
+          )
+            credit = CreditDebit.Debit;
+          else {
+            console.error(
+              previousBalance,
+              amount,
+              finalBalance,
+              previousBalance + amount,
+              previousBalance - amount,
+            );
+            throw "Unconsistent Credit/Debit statement.";
+            credit = CreditDebit.Credit;
+          }
+          const statement: Statement = {
+            date: this.string2date(d[0]),
+            reference: r ? r[0] : "",
+            amount,
+            credit,
+            valueDate: this.string2date(dv[0]),
+            balance: finalBalance,
+            information,
+          };
+          return {
+            statement,
+            index: j + 3,
+            finalBalance,
+          };
         } else {
           j++;
         }
       }
-      return [undefined, j];
+      return { statement: undefined, index: j, finalBalance: previousBalance };
     }
-    return [undefined, idx + 1];
+    // Not a date field at this position
+    return {
+      statement: undefined,
+      index: idx + 1,
+      finalBalance: previousBalance,
+    };
   }
 
   private extractStatementsFromPage(
     page: Page,
-    first: boolean,
-    last: boolean,
-  ): Statement[] {
+    previousBalance: number,
+  ): { statements: Statement[]; finalBalance: number } {
     const texts: string[] = this.extractTextsFromPage(page);
-    if (first) this.parsePageHeader(texts);
+    const statements: Statement[] = [];
     let idx = this.indexOfFirstStatement(texts);
     if (idx) {
-      console.log("first statement", texts[idx], texts[idx + 1]);
-      console.log(this.extractOneStatement(texts, idx));
+      while (idx < texts.length) {
+        const parsed = this.extractOneStatement(texts, idx, previousBalance);
+        idx = parsed.index;
+        previousBalance = parsed.finalBalance;
+        if (parsed.statement) statements.push(parsed.statement);
+      }
     }
-    return [];
+    return { statements, finalBalance: previousBalance };
   }
 
   private exportStatementsFromPages(pages: Page[]): string {
-    const statements: Statement[] = [];
+    let result = "";
+    let statements: Statement[] = [];
     const len = pages.length;
-    const result = "";
-    for (let i = 0; i < len; i++)
-      statements.concat(
-        this.extractStatementsFromPage(pages[i], i == 0, i == len - 1),
-      );
-    statements.forEach((stmt) =>
-      result.concat(`					<STMTTRN>
+
+    const header = this.parsePageHeader(pages[0]);
+    if (header) {
+      let previousBalance = header.initBalance;
+      for (let i = 0; i < len; i++) {
+        const parsed = this.extractStatementsFromPage(
+          pages[i],
+          previousBalance,
+        );
+        statements = statements.concat(parsed.statements);
+        previousBalance = parsed.finalBalance;
+      }
+      console.log("all statements", statements);
+      statements.forEach((stmt) => {
+        result = result.concat(`  <STMTTRN>
     <TRNTYPE>DEBIT</TRNTYPE>
     <DTPOSTED>20231130</DTPOSTED>
     <TRNAMT>-0.49</TRNAMT>
     <FITID>202311300127</FITID>
     <NAME>GOOGLE*GOOGLE PLAY APP G.CO-HELPPAY# D02 R296 G.CO-HELPPAY# </NAME>
   </STMTTRN>
-`),
-    );
+`);
+      });
+    }
     return result;
   }
 
-  public handlePdfFile(pdfData: Output): void {
+  public outputOfxHeader(): void {
     console.log(`<?xml version="1.0" encoding="utf-8" ?>
   <?OFX OFXHEADER="200" VERSION="202" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
   <OFX>
@@ -248,18 +311,20 @@ class MyApp {
     </SIGNONMSGSRSV1>
     <BANKMSGSRSV1>
     `);
+  }
 
-    console.log(
-      this.exportStatementsFromPages(
-        this.filterPagesForCurrency(pdfData.Pages, "EUR"),
-      ),
-    );
-
+  public outputOfxTrailer(): void {
     console.log(`	</BANKMSGSRSV1>
 </OFX>
 `);
   }
+
+  public handlePdfFile(pdfData: Output): void {
+    this.exportStatementsFromPages(
+      this.filterPagesForCurrency(pdfData.Pages, this.currency),
+    );
+  }
 }
 
-const app = new MyApp();
-app.run(process.argv[2], "EUR");
+const app = new MyApp("EUR");
+app.run(process.argv[2]);
