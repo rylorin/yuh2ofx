@@ -1,6 +1,6 @@
 {
-  "name": "yuh2Ofx",
-  "version": "0.0.1",
+  "name": "YuhToOfx",
+  "version": "0.0.2",
   "private": false,
   "description": "Convert Yuh statements reports to OFX format  ",
   "repository": "https://github.com/rylorin/yuh2ofx.git",
@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "clean": "rm -rf build",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint ./src",
     "prepublishOnly": "yarn build",
     "qc": "yarn lint && yarn type-check && prettier --check .",
     "start": "NODE_ENV=production node build/index.js",
@@ -22,18 +22,16 @@
     "pdf2json": "^3.0.5"
   },
   "devDependencies": {
-    "@types/node": "^20.11.28",
-    "@typescript-eslint/eslint-plugin": "^7.2.0",
-    "@typescript-eslint/parser": "^7.2.0",
-    "eslint": "^8.56.0",
+    "@types/node": "^20.12.7",
+    "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",
-    "eslint-plugin-rxjs": "^5.0.3",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.0",
     "prettier": "^3.1.1",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.2"
+    "typescript": "^5.4.4",
+    "typescript-eslint": "^7.5.0"
   },
   "engines": {
     "node": "^20.11.1"

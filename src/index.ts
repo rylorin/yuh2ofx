@@ -170,7 +170,7 @@ class Pdf2Ofx {
     const result: Page[] = [];
     pages.forEach((page) => {
       const isStart = this.findStartOfStatements(page);
-      // console.log("filterPagesForCurrency", activeCurrency, isStart);
+      // console.error("filterPagesForCurrency", activeCurrency, isStart);
       if (isStart == currency) {
         activeCurrency = isStart;
         result.push(page);
@@ -218,6 +218,17 @@ class Pdf2Ofx {
     }
   }
 
+  private parseFixed(text: string): number {
+    const integerPart = text.slice(0, -3);
+    const decimalPart = text.slice(-2);
+    const integerValue = parseInt(
+      integerPart.replaceAll(",", "").replaceAll("'", ""),
+    );
+    const decimalValue = parseInt(decimalPart);
+    const result = integerValue + decimalValue / 100;
+    return result;
+  }
+
   /**
    * Extract summary from page related to the current currency
    * @param page PDF page to parse
@@ -231,10 +242,10 @@ class Pdf2Ofx {
         currency: texts[idx + 1],
         dtFrom: this.string2date(texts[idx + 2].slice(-10)),
         dtTo: this.string2date(texts[idx + 8].slice(-10)),
-        initBalance: parseFloat(texts[idx + 3].replaceAll("'", "")),
-        finalBalance: parseFloat(texts[idx + 9].replaceAll("'", "")),
-        debitSum: parseFloat(texts[idx + 5].replaceAll(",", "")),
-        creditSum: parseFloat(texts[idx + 7].replaceAll(",", "")),
+        initBalance: this.parseFixed(texts[idx + 3]),
+        finalBalance: this.parseFixed(texts[idx + 9]),
+        debitSum: this.parseFixed(texts[idx + 5]),
+        creditSum: this.parseFixed(texts[idx + 7]),
       };
       // console.error(texts.slice(idx, idx + 8), header);
       return header;
@@ -268,16 +279,15 @@ class Pdf2Ofx {
   ): { statement: Statement | undefined; index: number; finalBalance: number } {
     const d = texts[idx].match(this.date_pattern);
     if (d) {
-      // console.log(texts[idx], texts[idx + 1], d);
       let j = idx + 2;
       while (j < texts.length) {
-        const r = texts[j - 1].match(this.integer_pattern);
-        const a = texts[j].replaceAll("'", "").match(this.fixed_pattern);
-        const dv = texts[j + 1].match(this.date_pattern);
-        const b = texts[j + 2].replaceAll("'", "").match(this.fixed_pattern);
+        const r = texts[j - 1].match(this.integer_pattern); // Reference
+        const a = texts[j].replaceAll("'", "").match(this.fixed_pattern); // amount (debit/credit)
+        const dv = texts[j + 1].match(this.date_pattern); // Date valeur
+        const b = texts[j + 2].replaceAll("'", "").match(this.fixed_pattern); // balance (after debit/credit)
         if (a && dv && b) {
           // Statement pattern
-          // console.log("extractOneStatement", texts.slice(idx, j + 3));
+          // console.error("extractOneStatement", texts.slice(idx, j + 3));
           let information: string = texts
             .slice(idx + 1, r ? j - 1 : j)
             .join(" ")
@@ -290,8 +300,8 @@ class Pdf2Ofx {
             if (information.startsWith("**** "))
               information = information.substring(12);
           }
-          const amount = parseFloat(a[0]);
-          const finalBalance = parseFloat(b[0]);
+          const amount = this.parseFixed(a[0]);
+          const finalBalance = this.parseFixed(b[0]);
           let credit: CreditDebit;
           // Multiply each amount by 100 to get integer number and avoid floating point errors
           if (
@@ -312,7 +322,7 @@ class Pdf2Ofx {
               previousBalance + amount,
               previousBalance - amount,
             );
-            throw Error("Unconsistent Credit/Debit statement.");
+            throw Error("Credit/Debit statement not consistent.");
           }
           const statement: Statement = {
             date: this.string2date(d[0]),
@@ -454,7 +464,6 @@ class Pdf2Ofx {
         <SEVERITY>INFO</SEVERITY>
       </STATUS>
     `;
-    // console.log(ofx);
     return ofx;
   }
 
@@ -499,7 +508,6 @@ class Pdf2Ofx {
       </STMTRS>
 `;
     }
-    // console.log(ofx);
     return ofx;
   }
 
@@ -516,7 +524,6 @@ class Pdf2Ofx {
   </BANKMSGSRSV1>
 </OFX>
 `;
-    // console.log(ofx);
     return ofx;
   }
 
@@ -534,8 +541,13 @@ class Pdf2Ofx {
   }
 }
 
-const app = new Pdf2Ofx(process.argv[3]);
-app.run(process.argv[2]).catch((err: Error) => {
-  console.error(err);
+if (process.argv.length < 4) {
+  console.error(`Usage: ${process.argv[1]} filename currency`);
   exit(1);
-});
+} else {
+  const app = new Pdf2Ofx(process.argv[3]);
+  app.run(process.argv[2]).catch((err: Error) => {
+    console.error(err);
+    exit(1);
+  });
+}
