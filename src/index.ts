@@ -219,14 +219,14 @@ class Pdf2Ofx {
   }
 
   private parseFixed(text: string): number {
+    const minus = text[0] == "-";
     const integerPart = text.slice(0, -3);
     const decimalPart = text.slice(-2);
     const integerValue = parseInt(
       integerPart.replaceAll(",", "").replaceAll("'", ""),
     );
     const decimalValue = parseInt(decimalPart);
-    const result =
-      integerValue + (integerValue >= 0 ? decimalValue : -decimalValue) / 100;
+    const result = integerValue + (minus ? -decimalValue : decimalValue) / 100;
     return result;
   }
 
