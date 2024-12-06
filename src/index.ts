@@ -226,7 +226,7 @@ class Pdf2Ofx {
     );
     const decimalValue = parseInt(decimalPart);
     const result =
-      integerValue + (integerValue > 0 ? decimalValue : -decimalValue) / 100;
+      integerValue + (integerValue >= 0 ? decimalValue : -decimalValue) / 100;
     return result;
   }
 
