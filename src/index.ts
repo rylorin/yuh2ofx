@@ -225,7 +225,8 @@ class Pdf2Ofx {
       integerPart.replaceAll(",", "").replaceAll("'", ""),
     );
     const decimalValue = parseInt(decimalPart);
-    const result = integerValue + decimalValue / 100;
+    const result =
+      integerValue + (integerValue > 0 ? decimalValue : -decimalValue) / 100;
     return result;
   }
 
@@ -287,7 +288,6 @@ class Pdf2Ofx {
         const b = texts[j + 2].replaceAll("'", "").match(this.fixed_pattern); // balance (after debit/credit)
         if (a && dv && b) {
           // Statement pattern
-          // console.error("extractOneStatement", texts.slice(idx, j + 3));
           let information: string = texts
             .slice(idx + 1, r ? j - 1 : j)
             .join(" ")
@@ -305,13 +305,13 @@ class Pdf2Ofx {
           let credit: CreditDebit;
           // Multiply each amount by 100 to get integer number and avoid floating point errors
           if (
-            Math.round((previousBalance + amount) * 100) / 100 ==
-            finalBalance
+            Math.round(previousBalance * 100) + Math.round(amount * 100) ==
+            Math.round(finalBalance * 100)
           ) {
             credit = CreditDebit.Credit;
           } else if (
-            Math.round((previousBalance - amount) * 100) / 100 ==
-            finalBalance
+            Math.round(previousBalance * 100) - Math.round(amount * 100) ==
+            Math.round(finalBalance * 100)
           ) {
             credit = CreditDebit.Debit;
           } else {
@@ -321,6 +321,11 @@ class Pdf2Ofx {
               finalBalance,
               previousBalance + amount,
               previousBalance - amount,
+            );
+            console.error(
+              Math.round(previousBalance * 100),
+              Math.round(amount * 100),
+              Math.round(finalBalance * 100),
             );
             throw Error("Credit/Debit statement not consistent.");
           }
