@@ -19,7 +19,7 @@ function normalizeObject(object: Record<string, any>): any {
 /* https://github.com/sindresorhus/hash-object/blob/main/index.js */
 function hashObject(
   object: Record<string, any>,
-  { encoding = "hex", algorithm = "sha512" } = {},
+  { encoding = "hex", algorithm = "sha256" } = {},
 ): string {
   if (typeof object != "object") {
     throw new TypeError("Expected an object");
@@ -63,12 +63,13 @@ export type CreditDebit = (typeof CreditDebit)[keyof typeof CreditDebit];
  */
 type Statement = {
   date: Date;
-  information: string;
   reference: string;
+  category: string;
   credit: CreditDebit;
   amount: number;
   valueDate: Date;
   balance: number;
+  information: string;
 };
 
 const STATEMENTS_REPORT_HEADER = "Extrait de compte en";
@@ -295,8 +296,9 @@ class Pdf2Ofx {
         const b = texts[j + 2].replaceAll("'", "").match(this.fixed_pattern); // balance (after debit/credit)
         if (a && dv && b) {
           // console.log(texts.slice(idx + 1, r ? j - 1 : j));
+          const category = texts[idx + 1];
           let information: string = "";
-          switch (texts[idx + 1]) {
+          switch (category) {
             case "Paiement carte de dÈbit":
               information += "Carte ";
               break;
@@ -309,7 +311,7 @@ class Pdf2Ofx {
             case "IntÈrÍts crÈditeurs":
               break;
             default:
-              information += texts[idx + 1] + " ";
+              information += category + " ";
           }
           // Statement pattern
           information += texts
@@ -317,17 +319,8 @@ class Pdf2Ofx {
             .join(" ")
             .replaceAll("‡", "à")
             .replaceAll("È", "é")
-            .replaceAll("Í", "ê");
-          if (information.startsWith(TRANSFERT_TO)) {
-            information = "A" + information.substring(TRANSFERT_TO.length);
-          } else if (information.startsWith(TRANSFERT_FROM)) {
-            information = "De" + information.substring(TRANSFERT_FROM.length);
-          } else if (information.startsWith(PLASTIC_CARD)) {
-            information = "Carte" + information.substring(PLASTIC_CARD.length);
-            if (information.startsWith("**** "))
-              information = information.substring(12);
-          }
-          information = information.replaceAll("  ", " ");
+            .replaceAll("Í", "ê")
+            .replaceAll("  ", " ");
           const amount = this.parseFixed(a[0]);
           const finalBalance = this.parseFixed(b[0]);
           let credit: CreditDebit;
@@ -360,6 +353,7 @@ class Pdf2Ofx {
           const statement: Statement = {
             date: this.string2date(d[0]),
             reference: r ? r[0] : "",
+            category,
             amount,
             credit,
             valueDate: this.string2date(dv[0]),
