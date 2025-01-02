@@ -294,9 +294,26 @@ class Pdf2Ofx {
         const dv = texts[j + 1].match(this.date_pattern); // Date valeur
         const b = texts[j + 2].replaceAll("'", "").match(this.fixed_pattern); // balance (after debit/credit)
         if (a && dv && b) {
+          // console.log(texts.slice(idx + 1, r ? j - 1 : j));
+          let information: string = "";
+          switch (texts[idx + 1]) {
+            case "Paiement carte de dÈbit":
+              information += "Carte ";
+              break;
+            case "Virement de":
+              information += "De ";
+              break;
+            case "Virement ‡":
+              information += "A ";
+              break;
+            case "IntÈrÍts crÈditeurs":
+              break;
+            default:
+              information += texts[idx + 1] + " ";
+          }
           // Statement pattern
-          let information: string = texts
-            .slice(idx + 1, r ? j - 1 : j)
+          information += texts
+            .slice(idx + 2, r ? j - 1 : j)
             .join(" ")
             .replaceAll("‡", "à")
             .replaceAll("È", "é")
@@ -351,7 +368,7 @@ class Pdf2Ofx {
           };
           if (!statement.reference) {
             statement.reference = hashObject(statement);
-            statement.reference = `${statement.date.getTime()}${statement.credit}${statement.balance}`;
+            // statement.reference = `${statement.date.getTime()}${statement.credit}${statement.balance}`;
           }
           // console.log(statement);
           return {
