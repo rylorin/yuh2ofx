@@ -3,15 +3,12 @@ import { exit } from "node:process";
 import { Output, Page, default as PdfParser } from "pdf2json";
 
 /* https://github.com/sindresorhus/hash-object/blob/main/index.js */
-function normalizeObject(object: Record<string, any>): any {
-  console.log("normalizeObject", object);
-  console.log(Object.entries(object));
-
+function _normalizeObject(object: Record<string, any>): any {
   return Object.fromEntries(
     Object.entries(object).map(([key, value]) => [
       // console.log(key,value)
       key.normalize(),
-      normalizeObject(value), // eslint-disable-line @typescript-eslint/no-unsafe-argument
+      _normalizeObject(value), // eslint-disable-line @typescript-eslint/no-unsafe-argument
     ]),
   );
 }
@@ -39,7 +36,7 @@ function hashObject(
 /**
  * Header of a currency's statements report
  */
-type Header = {
+interface Header {
   currency: string;
   dtFrom: Date;
   dtTo: Date;
@@ -47,7 +44,7 @@ type Header = {
   finalBalance: number;
   creditSum: number;
   debitSum: number;
-};
+}
 
 /**
  * Credit or debit statement
@@ -61,7 +58,7 @@ export type CreditDebit = (typeof CreditDebit)[keyof typeof CreditDebit];
 /**
  * One sigle statement
  */
-type Statement = {
+interface Statement {
   date: Date;
   reference: string;
   category: string;
@@ -70,12 +67,9 @@ type Statement = {
   valueDate: Date;
   balance: number;
   information: string;
-};
+}
 
 const STATEMENTS_REPORT_HEADER = "Extrait de compte en";
-const TRANSFERT_TO = "Virement à";
-const TRANSFERT_FROM = "Virement de";
-const PLASTIC_CARD = "Paiement carte de débit xxxx";
 
 /**
  * Extract statements from a PDF report and generate the corresponding OFX document
@@ -297,7 +291,7 @@ class Pdf2Ofx {
         if (a && dv && b) {
           // console.log(texts.slice(idx + 1, r ? j - 1 : j));
           const category = texts[idx + 1];
-          let information: string = "";
+          let information = "";
           switch (category) {
             case "Paiement carte de dÈbit":
               information += "Carte ";

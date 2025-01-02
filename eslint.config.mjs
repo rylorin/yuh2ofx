@@ -4,7 +4,8 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   eslint.configs.recommended,
-  ...tseslint.configs.recommended,
+  tseslint.configs.strict,
+  tseslint.configs.stylistic,
   {
     languageOptions: {
       ecmaVersion: 2020,
@@ -48,11 +49,6 @@ export default tseslint.config(
       "@typescript-eslint/unbound-method": "error",
       "no-unsafe-optional-chaining": "error",
       "no-unused-vars": "off", // off required as we use the @typescript-eslint/no-unused-vars rule
-      // "rxjs/no-async-subscribe": "warn",
-      // "rxjs/no-ignored-observable": "warn",
-      // "rxjs/no-ignored-subscription": "warn",
-      // "rxjs/no-unbound-methods": "warn",
-      // "rxjs/throw-error": "warn",
       strict: "error",
     },
   },
