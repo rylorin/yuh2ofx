@@ -4,9 +4,13 @@ import { Output, Page, default as PdfParser } from "pdf2json";
 
 /* https://github.com/sindresorhus/hash-object/blob/main/index.js */
 function normalizeObject(object: Record<string, any>): any {
+  console.log("normalizeObject", object);
+  console.log(Object.entries(object));
+
   return Object.fromEntries(
     Object.entries(object).map(([key, value]) => [
-      key.normalize("NFD"),
+      // console.log(key,value)
+      key.normalize(),
       normalizeObject(value), // eslint-disable-line @typescript-eslint/no-unsafe-argument
     ]),
   );
@@ -21,7 +25,8 @@ function hashObject(
     throw new TypeError("Expected an object");
   }
 
-  const normalizedObject = normalizeObject(object);
+  // const normalizedObject = normalizeObject(object);
+  const normalizedObject = object;
 
   const hash = crypto
     .createHash(algorithm)
@@ -66,9 +71,10 @@ type Statement = {
   balance: number;
 };
 
-const STATEMENTS_REPORT_HEADER = "EXTRAIT DE COMPTE en";
-const TRANSFERT = "Transfert - ";
-const PLASTIC_CARD = "Paiement par carte de débit - ";
+const STATEMENTS_REPORT_HEADER = "Extrait de compte en";
+const TRANSFERT_TO = "Virement à";
+const TRANSFERT_FROM = "Virement de";
+const PLASTIC_CARD = "Paiement carte de débit xxxx";
 
 /**
  * Extract statements from a PDF report and generate the corresponding OFX document
@@ -150,6 +156,7 @@ class Pdf2Ofx {
    */
   private findStartOfStatements(page: Page): string | undefined {
     const idx = page.Texts.findIndex((text) => {
+      // console.error("text.R", text.R);
       const idx = text.R.findIndex(
         (run) => decodeURIComponent(run.T) == STATEMENTS_REPORT_HEADER,
       );
@@ -169,6 +176,7 @@ class Pdf2Ofx {
     let activeCurrency: string | undefined;
     const result: Page[] = [];
     pages.forEach((page) => {
+      // console.error(page);
       const isStart = this.findStartOfStatements(page);
       // console.error("filterPagesForCurrency", activeCurrency, isStart);
       if (isStart == currency) {
@@ -204,21 +212,21 @@ class Pdf2Ofx {
   private indexOfFirstStatement(texts: string[]): number | undefined {
     let idx = 0;
     while (idx < texts.length) {
-      const j = texts.indexOf("Date", idx);
+      const j = texts.indexOf("DATE", idx);
       if (j >= idx) {
         if (
-          texts[idx + 1] == "Information" &&
-          texts[idx + 5] == "Date" &&
-          texts[idx + 6] == "valeur" &&
-          texts[idx + 7] == "Solde "
+          texts[idx + 1] == "INFORMATION" &&
+          texts[idx + 5] == "DATE VALEUR" &&
+          texts[idx + 6] == "SOLDE ("
         )
-          return idx + 8;
+          return idx + 9;
         else idx++;
       } else return undefined;
     }
   }
 
   private parseFixed(text: string): number {
+    text = text.trim();
     const minus = text[0] == "-";
     const integerPart = text.slice(0, -3);
     const decimalPart = text.slice(-2);
@@ -242,13 +250,12 @@ class Pdf2Ofx {
       const header: Header = {
         currency: texts[idx + 1],
         dtFrom: this.string2date(texts[idx + 2].slice(-10)),
-        dtTo: this.string2date(texts[idx + 8].slice(-10)),
+        dtTo: this.string2date(texts[idx + 11].slice(-10)),
         initBalance: this.parseFixed(texts[idx + 3]),
-        finalBalance: this.parseFixed(texts[idx + 9]),
-        debitSum: this.parseFixed(texts[idx + 5]),
-        creditSum: this.parseFixed(texts[idx + 7]),
+        finalBalance: this.parseFixed(texts[idx + 12]),
+        debitSum: this.parseFixed(texts[idx + 6]),
+        creditSum: this.parseFixed(texts[idx + 9]),
       };
-      // console.error(texts.slice(idx, idx + 8), header);
       return header;
     }
     return undefined;
@@ -281,7 +288,7 @@ class Pdf2Ofx {
     const d = texts[idx].match(this.date_pattern);
     if (d) {
       let j = idx + 2;
-      while (j < texts.length) {
+      while (j + 2 <= texts.length) {
         const r = texts[j - 1].match(this.integer_pattern); // Reference
         const a = texts[j].replaceAll("'", "").match(this.fixed_pattern); // amount (debit/credit)
         const dv = texts[j + 1].match(this.date_pattern); // Date valeur
@@ -291,15 +298,19 @@ class Pdf2Ofx {
           let information: string = texts
             .slice(idx + 1, r ? j - 1 : j)
             .join(" ")
+            .replaceAll("‡", "à")
             .replaceAll("È", "é")
             .replaceAll("Í", "ê");
-          if (information.startsWith(TRANSFERT)) {
-            information = information.substring(TRANSFERT.length);
+          if (information.startsWith(TRANSFERT_TO)) {
+            information = "A" + information.substring(TRANSFERT_TO.length);
+          } else if (information.startsWith(TRANSFERT_FROM)) {
+            information = "De" + information.substring(TRANSFERT_FROM.length);
           } else if (information.startsWith(PLASTIC_CARD)) {
-            information = information.substring(PLASTIC_CARD.length);
+            information = "Carte" + information.substring(PLASTIC_CARD.length);
             if (information.startsWith("**** "))
               information = information.substring(12);
           }
+          information = information.replaceAll("  ", " ");
           const amount = this.parseFixed(a[0]);
           const finalBalance = this.parseFixed(b[0]);
           let credit: CreditDebit;
@@ -338,7 +349,11 @@ class Pdf2Ofx {
             balance: finalBalance,
             information,
           };
-          if (!statement.reference) statement.reference = hashObject(statement);
+          if (!statement.reference) {
+            statement.reference = hashObject(statement);
+            statement.reference = `${statement.date.getTime()}${statement.credit}${statement.balance}`;
+          }
+          // console.log(statement);
           return {
             statement,
             index: j + 3,
@@ -372,6 +387,8 @@ class Pdf2Ofx {
     const statements: Statement[] = [];
     let idx = this.indexOfFirstStatement(texts);
     if (idx) {
+      // console.log(texts[idx], texts[idx + 1], texts[idx + 2]);
+      if (texts[idx + 1] == "Solde d'ouverture ") idx += 3;
       // console.error("extractStatementsFromPage", texts.slice(idx, idx + 8));
       while (idx < texts.length) {
         const parsed = this.extractOneStatement(texts, idx, previousBalance);
