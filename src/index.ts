@@ -66,7 +66,8 @@ interface Statement {
   amount: number;
   valueDate: Date;
   balance: number;
-  information: string;
+  memo: string;
+  payee: string;
 }
 
 const STATEMENTS_REPORT_HEADER = "Extrait de compte en";
@@ -171,9 +172,7 @@ class Pdf2Ofx {
     let activeCurrency: string | undefined;
     const result: Page[] = [];
     pages.forEach((page) => {
-      // console.error(page);
       const isStart = this.findStartOfStatements(page);
-      // console.error("filterPagesForCurrency", activeCurrency, isStart);
       if (isStart == currency) {
         activeCurrency = isStart;
         result.push(page);
@@ -268,6 +267,10 @@ class Pdf2Ofx {
     return new Date(yy, mm - 1, dd, 12);
   }
 
+  private convertEncoding(s: string): string {
+    return s.replaceAll("‡", "à").replaceAll("È", "é").replaceAll("Í", "ê");
+  }
+
   /**
    * Parse one statement from text
    * @param texts Text to parse
@@ -289,32 +292,36 @@ class Pdf2Ofx {
         const dv = texts[j + 1].match(this.date_pattern); // Date valeur
         const b = texts[j + 2].replaceAll("'", "").match(this.fixed_pattern); // balance (after debit/credit)
         if (a && dv && b) {
-          // console.log(texts.slice(idx + 1, r ? j - 1 : j));
-          const category = texts[idx + 1];
-          let information = "";
+          const stmt = texts
+            .slice(idx + 1, r ? j - 1 : j)
+            .map((item) => this.convertEncoding(item));
+          const category = stmt[0] || "undefined";
+          // console.log("statement:", category, stmt);
+          let payee: string;
+          let memo: string;
           switch (category) {
-            case "Paiement carte de dÈbit":
-              information += "Carte ";
+            case "Paiement carte de débit":
+              payee = stmt[2];
+              memo = category + " " + stmt.slice(1).join(" ");
               break;
             case "Virement de":
-              information += "De ";
+            case "Virement à":
+              payee = stmt.slice(0, 2).join(" ");
+              memo = stmt.slice(1).join(" ");
               break;
-            case "Virement ‡":
-              information += "A ";
+            case "Intérêts créditeurs":
+              payee = stmt[1];
+              memo = "";
               break;
-            case "IntÈrÍts crÈditeurs":
-              break;
+            case "Change de devises automatique":
+            case "Achat":
+            // payee = stmt[1] || "undefined";
+            // memo = category + " " + stmt.slice(1).join(" ");
+            // break;
             default:
-              information += category + " ";
+              payee = category + " " + stmt[1];
+              memo = category + " " + stmt.slice(1).join(" ");
           }
-          // Statement pattern
-          information += texts
-            .slice(idx + 2, r ? j - 1 : j)
-            .join(" ")
-            .replaceAll("‡", "à")
-            .replaceAll("È", "é")
-            .replaceAll("Í", "ê")
-            .replaceAll("  ", " ");
           const amount = this.parseFixed(a[0]);
           const finalBalance = this.parseFixed(b[0]);
           let credit: CreditDebit;
@@ -352,7 +359,8 @@ class Pdf2Ofx {
             credit,
             valueDate: this.string2date(dv[0]),
             balance: finalBalance,
-            information,
+            payee,
+            memo,
           };
           if (!statement.reference) {
             statement.reference = hashObject(statement);
@@ -392,9 +400,7 @@ class Pdf2Ofx {
     const statements: Statement[] = [];
     let idx = this.indexOfFirstStatement(texts);
     if (idx) {
-      // console.log(texts[idx], texts[idx + 1], texts[idx + 2]);
       if (texts[idx + 1] == "Solde d'ouverture ") idx += 3;
-      // console.error("extractStatementsFromPage", texts.slice(idx, idx + 8));
       while (idx < texts.length) {
         const parsed = this.extractOneStatement(texts, idx, previousBalance);
         idx = parsed.index;
@@ -428,7 +434,6 @@ class Pdf2Ofx {
         statements = statements.concat(parsed.statements);
         previousBalance = parsed.finalBalance;
       }
-      // console.error("all statements", statements);
       // consistency checks
       const debits =
         Math.round(
@@ -510,8 +515,8 @@ class Pdf2Ofx {
         <CURDEF>${header.currency}</CURDEF>
         <BANKACCTFROM>
           <BANKID>SWQBCHZZXXX</BANKID>
-          <ACCTID>CH12 XXX</ACCTID>
-          <ACCTTYPE>TRADING</ACCTTYPE>
+          <ACCTID>${this.currency}</ACCTID>
+          <ACCTTYPE>CHECKING</ACCTTYPE>
         </BANKACCTFROM>
         <BANKTRANLIST>
           <DTSTART>${this.formatDate(header.dtFrom)}</DTSTART>
@@ -523,7 +528,8 @@ class Pdf2Ofx {
             <DTPOSTED>${this.formatDate(stmt.date)}</DTPOSTED>
             <TRNAMT>${stmt.credit == CreditDebit.Credit ? stmt.amount : -stmt.amount}</TRNAMT>
             <FITID>${stmt.reference}</FITID>
-            <NAME>${stmt.information}</NAME>
+            <NAME>${stmt.payee}</NAME>
+            <MEMO>${stmt.memo.replaceAll("   ", " ").replaceAll("  ", " ")}</MEMO>
           </STMTTRN>
 `;
       });
