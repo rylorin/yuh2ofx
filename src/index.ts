@@ -2,33 +2,15 @@ import crypto from "node:crypto";
 import { exit } from "node:process";
 import { Output, Page, default as PdfParser } from "pdf2json";
 
-/* https://github.com/sindresorhus/hash-object/blob/main/index.js */
-function _normalizeObject(object: Record<string, any>): any {
-  return Object.fromEntries(
-    Object.entries(object).map(([key, value]) => [
-      // console.log(key,value)
-      key.normalize(),
-      _normalizeObject(value), // eslint-disable-line @typescript-eslint/no-unsafe-argument
-    ]),
-  );
-}
-
-/* https://github.com/sindresorhus/hash-object/blob/main/index.js */
-function hashObject(
-  object: Record<string, any>,
-  { encoding = "hex", algorithm = "sha256" } = {},
-): string {
+function hashObject(object: Record<string, any>): string {
   if (typeof object != "object") {
-    throw new TypeError("Expected an object");
+    throw new TypeError("Object expected");
   }
 
-  // const normalizedObject = normalizeObject(object);
-  const normalizedObject = object;
-
   const hash = crypto
-    .createHash(algorithm)
-    .update(JSON.stringify(normalizedObject), "utf8")
-    .digest(encoding as crypto.BinaryToTextEncoding);
+    .createHash("sha256")
+    .update(JSON.stringify(object), "utf8")
+    .digest("hex" as crypto.BinaryToTextEncoding);
 
   return hash;
 }
@@ -44,6 +26,11 @@ interface Header {
   finalBalance: number;
   creditSum: number;
   debitSum: number;
+}
+
+interface ParsedFile {
+  header: Header;
+  statements: Statement[];
 }
 
 /**
@@ -296,7 +283,6 @@ class Pdf2Ofx {
             .slice(idx + 1, r ? j - 1 : j)
             .map((item) => this.convertEncoding(item));
           const category = stmt[0] || "undefined";
-          // console.log("statement:", category, stmt);
           let payee: string;
           let memo: string;
           switch (category) {
@@ -306,6 +292,7 @@ class Pdf2Ofx {
               break;
             case "Virement de":
             case "Virement à":
+              // console.error("statement:", category, stmt);
               payee = stmt.slice(0, 2).join(" ");
               memo = stmt.slice(1).join(" ");
               break;
@@ -315,13 +302,11 @@ class Pdf2Ofx {
               break;
             case "Change de devises automatique":
             case "Achat":
-            // payee = stmt[1] || "undefined";
-            // memo = category + " " + stmt.slice(1).join(" ");
-            // break;
-            default:
+            default: // eslint-disable-line no-fallthrough
               payee = category + " " + stmt[1];
               memo = category + " " + stmt.slice(1).join(" ");
           }
+          memo = memo.replaceAll("   ", " ").replaceAll("  ", " ");
           const amount = this.parseFixed(a[0]);
           const finalBalance = this.parseFixed(b[0]);
           let credit: CreditDebit;
@@ -416,10 +401,7 @@ class Pdf2Ofx {
    * @param pages PDF pages to parse
    * @returns headers and statements
    */
-  private extractStatementsFromPages(pages: Page[]): {
-    header: Header | undefined;
-    statements: Statement[];
-  } {
+  private extractStatementsFromPages(pages: Page[]): ParsedFile {
     let statements: Statement[] = [];
 
     const header = this.parsePageHeader(pages[0]);
@@ -461,9 +443,10 @@ class Pdf2Ofx {
       }
       if (header.finalBalance != statements[statements.length - 1].balance)
         throw Error("Unconsistent final balance.");
+      return { header, statements };
+    } else {
+      throw Error("No header found.");
     }
-
-    return { header, statements };
   }
 
   /**
@@ -529,7 +512,7 @@ class Pdf2Ofx {
             <TRNAMT>${stmt.credit == CreditDebit.Credit ? stmt.amount : -stmt.amount}</TRNAMT>
             <FITID>${stmt.reference}</FITID>
             <NAME>${stmt.payee}</NAME>
-            <MEMO>${stmt.memo.replaceAll("   ", " ").replaceAll("  ", " ")}</MEMO>
+            ${stmt.memo.length ? "<MEMO>" + stmt.memo + "</MEMO>" : ""}
           </STMTTRN>
 `;
       });
@@ -560,17 +543,21 @@ class Pdf2Ofx {
     return ofx;
   }
 
+  public outputOfxFile(parsed: ParsedFile): void {
+    console.log(this.outputOfxHeader(parsed));
+    console.log(this.outputOfxStatements(parsed));
+    console.log(this.outputOfxTrailer(parsed));
+  }
+
   /**
    * Parse PDF data and output corresponding OFX result
    * @param pdfData PDF file
    */
   public handlePdfFile(pdfData: Output): void {
-    const parsed = this.extractStatementsFromPages(
+    const parsed: ParsedFile = this.extractStatementsFromPages(
       this.extractPagesForCurrency(pdfData.Pages, this.currency),
     );
-    console.log(this.outputOfxHeader(parsed));
-    console.log(this.outputOfxStatements(parsed));
-    console.log(this.outputOfxTrailer(parsed));
+    this.outputOfxFile(parsed);
   }
 }
 
