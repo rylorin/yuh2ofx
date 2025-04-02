@@ -7,6 +7,6 @@ and generate the corresponding OFX file (that can be imported in accounting app)
 
 Working for statements reports for the following periods:
 
-- december 2023
-- january 2024
-- february 2024
+- december 2024
+- january 2025
+- february 2025
