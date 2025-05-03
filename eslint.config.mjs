@@ -1,5 +1,4 @@
 import eslint from "@eslint/js";
-// import rxjs from "eslint-plugin-rxjs";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -12,7 +11,6 @@ export default tseslint.config(
       sourceType: "module",
       parserOptions: { project: true },
     },
-    // plugins: { rxjs: rxjs },
     rules: {
       "no-console": "off",
 
@@ -27,7 +25,7 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "off", // We allow explicit any
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-non-null-assertion": "off", // behavior mismatch between TSlint and TScompiler. I make a valid usage of non null assertions
-      "@typescript-eslint/no-inferrable-types": "error",
+      "@typescript-eslint/no-inferrable-types": "warn",
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "off", // behavior mismatch between TSlint and TScompiler. giving too many useless errors
       "@typescript-eslint/no-unsafe-argument": "error",
