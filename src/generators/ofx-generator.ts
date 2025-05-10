@@ -43,7 +43,8 @@ export class OfxGenerator implements Generator {
       <STATUS>
         <CODE>0</CODE>
         <SEVERITY>INFO</SEVERITY>
-      </STATUS>`;
+      </STATUS>
+`;
   }
 
   private generateStatements(parsed: ParsedFile): string {
