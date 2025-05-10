@@ -4,7 +4,7 @@ import { Generator } from "./generators/generator";
 import { OfxGenerator } from "./generators/ofx-generator";
 import { PdfParser } from "./pdf-parser";
 
-const STATEMENTS_REPORT_HEADER = "Extrait de compte en";
+// const STATEMENTS_REPORT_HEADER = "Extrait de compte en";
 
 /**
  * Extract statements from a PDF report and generate the corresponding document

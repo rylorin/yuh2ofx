@@ -40,7 +40,7 @@ export class PdfParser {
           reject(error);
         }
       });
-      this.pdfreader.loadPDF(filename);
+      this.pdfreader.loadPDF(filename).catch(reject);
     });
   }
 
@@ -183,7 +183,7 @@ export class PdfParser {
               break;
             case "Change de devises automatique":
             case "Achat":
-            default: // eslint-disable-line no-fallthrough
+            default:
               payee = category + (stmt[1] ? " " + stmt[1] : "");
               memo =
                 category +
