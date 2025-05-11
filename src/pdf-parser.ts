@@ -1,5 +1,11 @@
 import { Page, default as Pdf2Json } from "pdf2json";
-import { CreditDebit, Header, ParsedFile, Statement } from "./types";
+import {
+  CreditDebit,
+  Header,
+  ParsedFile,
+  Statement,
+  YuhCategory,
+} from "./types";
 import { convertEncoding, hashObject, parseFixed, string2date } from "./utils";
 
 const STATEMENTS_REPORT_HEADER = "Extrait de compte en";
@@ -164,29 +170,39 @@ export class PdfParser {
           const stmt = texts
             .slice(idx + 1, r ? j - 1 : j)
             .map((item) => convertEncoding(item));
-          const category = stmt[0] || "undefined";
+          const category: YuhCategory = stmt[0] as YuhCategory;
           let payee: string;
           let memo: string;
           switch (category) {
-            case "Paiement carte de débit":
+            case YuhCategory.Card:
               payee = stmt[2];
               memo = category + " " + stmt.slice(1).join(" ");
               break;
-            case "Virement de":
-            case "Virement à":
+            case YuhCategory.From:
+            case YuhCategory.To:
               payee = stmt.slice(0, 2).join(" ");
               memo = stmt.slice(1).join(" ");
               break;
-            case "Intérêts créditeurs":
+            case YuhCategory.Interests:
               payee = stmt[1];
               memo = "";
               break;
-            case "Change de devises automatique":
-            case "Achat":
-            default:
+            case YuhCategory.Change:
+            case YuhCategory.Buy:
+            case YuhCategory.Dividend:
+            case YuhCategory.SavingsDeposit:
+            case YuhCategory.SavingsWithdrawal:
               payee = category + (stmt[1] ? " " + stmt[1] : "");
               memo =
                 category +
+                (stmt.length > 1 ? " " + stmt.slice(1).join(" ") : "");
+              break;
+            default:
+              console.error(`${category} not implemented!`); // eslint-disable-line @typescript-eslint/restrict-template-expressions
+              /* eslint-disable-next-line @typescript-eslint/restrict-plus-operands */
+              payee = category + (stmt[1] ? " " + stmt[1] : "");
+              memo =
+                category + // eslint-disable-line @typescript-eslint/restrict-plus-operands
                 (stmt.length > 1 ? " " + stmt.slice(1).join(" ") : "");
           }
           memo = memo.replaceAll("   ", " ").replaceAll("  ", " ");

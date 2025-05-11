@@ -1,5 +1,12 @@
-import { ParsedFile } from "../types";
+import { CreditDebit, ParsedFile, Statement, YuhCategory } from "../types";
 import { Generator } from "./generator";
+
+enum CsvCategory {
+  Achat = "Achat",
+  Dividende = "Dividendes",
+  Depot = "Dépôt",
+  Retrait = "Retrait",
+}
 
 /**
  * CSV file format generator for Portfolio Performance
@@ -17,15 +24,20 @@ export class CsvGenerator implements Generator {
     return result;
   }
 
-  private category2type(category: string): string | undefined {
-    switch (category) {
-      case "Achat":
-        return "Achat";
+  private category2type(stmt: Statement): CsvCategory | undefined {
+    let result: CsvCategory;
+    switch (stmt.category) {
+      case YuhCategory.Buy:
+        result = CsvCategory.Achat;
         break;
-      case "Dividende":
-        return "Dividendes";
+      case YuhCategory.Dividend:
+        result = CsvCategory.Dividende;
         break;
+      default:
+        if (stmt.credit == CreditDebit.Credit) result = CsvCategory.Depot;
+        else result = CsvCategory.Retrait;
     }
+    return result;
   }
 
   public generate(parsed: ParsedFile): string {
@@ -37,40 +49,53 @@ export class CsvGenerator implements Generator {
       let p2: number;
 
       const date = this.formatDate(stmt.date);
-      const category = this.category2type(stmt.category);
+      const category = this.category2type(stmt);
+      let ticker = "";
+      let securityName = "";
+      let shares = "";
+      let price = "";
+      let fees = "";
+      let taxe = "";
+      let isin = "";
 
-      // parse ticker symbol, text included between parentheses
-      p1 = stmt.memo.indexOf("(");
-      p2 = stmt.memo.indexOf(")", p1 + 1);
-      //  const parentheses = stmt.memo.match(/\([A-Z]{1,5}\)/);
-      //   const ticker = parentheses ? parentheses[0].slice(1, -1) : "";
-      const ticker = stmt.memo.substring(p1 + 1, p2);
-      // Security name
-      const securityName = stmt.payee.substring(stmt.category.length + 1);
-      // Parse shares after "Quantité: ""
-      p1 = stmt.memo.indexOf("Quantité: ");
-      p2 = stmt.memo.indexOf(" ", p1 + 10);
-      const shares = stmt.memo.substring(p1 + 10, p2).replace(".", ",");
-      // Parse average price after "Prix: XXX "
-      p1 = stmt.memo.indexOf("Prix: ");
-      p2 = stmt.memo.indexOf(" ", p1 + 6 + 4);
-      const price = stmt.memo.substring(p1 + 6 + 4, p2).replace(".", ",");
-      // Parse Fees from "Commission: XXX "
-      let fees: string;
-      p1 = stmt.memo.indexOf("Commission: ");
-      p2 = stmt.memo.indexOf(" ", p1 + 12 + 4);
-      if (p1 >= 0)
-        fees = stmt.memo.substring(p1 + 12 + 4, p2).replace(".", ",");
-      else fees = "0";
-      // Parse Taxe from "Taxe: XXX "
-      p1 = stmt.memo.indexOf("Taxe: ");
-      p2 = stmt.memo.indexOf(" ", p1 + 6 + 4);
-      const taxe = stmt.memo.substring(p1 + 6 + 4, p2).replace(".", ",");
-      // Parse ISIN from "ISIN: "
-      let isin: string;
-      p1 = stmt.memo.indexOf("ISIN: ");
-      if (p1 >= 0) isin = stmt.memo.substring(p1 + 6);
-      else isin = "";
+      switch (category) {
+        case CsvCategory.Achat:
+        case CsvCategory.Dividende:
+          {
+            // parse ticker symbol, text included between parentheses
+            p1 = stmt.memo.indexOf("(");
+            p2 = stmt.memo.indexOf(")", p1 + 1);
+            //  const parentheses = stmt.memo.match(/\([A-Z]{1,5}\)/);
+            //   const ticker = parentheses ? parentheses[0].slice(1, -1) : "";
+            ticker = stmt.memo.substring(p1 + 1, p2);
+            // Security name
+            securityName = stmt.payee.substring(stmt.category.length + 1);
+            // Parse shares after "Quantité: ""
+            p1 = stmt.memo.indexOf("Quantité: ");
+            p2 = stmt.memo.indexOf(" ", p1 + 10);
+            shares = stmt.memo.substring(p1 + 10, p2).replace(".", ",");
+            // Parse average price after "Prix: XXX "
+            p1 = stmt.memo.indexOf("Prix: ");
+            p2 = stmt.memo.indexOf(" ", p1 + 6 + 4);
+            price = stmt.memo.substring(p1 + 6 + 4, p2).replace(".", ",");
+            // Parse Fees from "Commission: XXX "
+            p1 = stmt.memo.indexOf("Commission: ");
+            p2 = stmt.memo.indexOf(" ", p1 + 12 + 4);
+            if (p1 >= 0)
+              fees = stmt.memo.substring(p1 + 12 + 4, p2).replace(".", ",");
+            else fees = "0";
+            // Parse Taxe from "Taxe: XXX "
+            p1 = stmt.memo.indexOf("Taxe: ");
+            p2 = stmt.memo.indexOf(" ", p1 + 6 + 4);
+            taxe = stmt.memo.substring(p1 + 6 + 4, p2).replace(".", ",");
+            // Parse ISIN from "ISIN: "
+            p1 = stmt.memo.indexOf("ISIN: ");
+            if (p1 >= 0) isin = stmt.memo.substring(p1 + 6);
+            else isin = "";
+          }
+          break;
+      }
+
       // Convert amount to string
       const amount = `${stmt.amount}`.replace(".", ",");
 

@@ -25,13 +25,24 @@ export const CreditDebit = {
 } as const;
 export type CreditDebit = (typeof CreditDebit)[keyof typeof CreditDebit];
 
+export enum YuhCategory {
+  Buy = "Achat",
+  Dividend = "Dividende",
+  Card = "Paiement carte de débit",
+  From = "Virement de",
+  To = "Virement à",
+  Interests = "Intérêts créditeurs",
+  Change = "Change de devises automatique",
+  SavingsDeposit = "Dépôt d'épargne",
+  SavingsWithdrawal = "Retrait d'épargne",
+}
 /**
  * One single statement
  */
 export interface Statement {
   date: Date;
   reference: string;
-  category: string;
+  category: YuhCategory;
   credit: CreditDebit;
   amount: number;
   valueDate: Date;
