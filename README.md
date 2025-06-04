@@ -45,7 +45,8 @@ The CSV format follows the Portfolio Performance import format with the followin
 - Symbole boursier
 - ISIN
 - Nom du titre
-- Parts;Montant brut
+- Parts
+- Montant brut
 - Frais
 - Impôts / Taxes
 - Valeur
