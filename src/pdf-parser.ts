@@ -28,6 +28,10 @@ export class PdfParser {
     this.currency = currency.toUpperCase();
   }
 
+  private roundToTwoDecimals(value: number): number {
+    return Math.round(value * 100) / 100;
+  }
+
   /**
    * Load and parse a PDF file
    * @param filename Input file name
@@ -141,6 +145,11 @@ export class PdfParser {
         debitSum: parseFixed(texts[idx + 6]),
         creditSum: parseFixed(texts[idx + 9]),
       };
+      const dtFromStr = header.dtFrom.toISOString().substring(0, 10);
+      const _dtToStr = header.dtTo.toISOString().substring(0, 10);
+      header.finalBalance = this.roundToTwoDecimals(
+        header.initBalance + header.creditSum - header.debitSum,
+      );
       return header;
     }
     return undefined;
@@ -338,14 +347,13 @@ export class PdfParser {
         console.error("Unconsistent total credits.", credits, header);
         throw Error("Unconsistent total credits.");
       }
-      const dtFromStr = header.dtFrom.toISOString().substring(0, 10);
-      const dtToStr = header.dtTo.toISOString().substring(0, 10);
-      if (header.finalBalance != statements[statements.length - 1].balance)
-        if (dtFromStr != "2025-04-01" && dtToStr != "2025-04-30")
-          // Disabled for April 2025 statements
-          throw Error(
-            `Unconsistent final balance: ${header.finalBalance} vs ${statements[statements.length - 1].balance}`,
-          );
+      if (header.finalBalance != statements[statements.length - 1].balance) {
+        console.error(header);
+        // Disabled for April 2025 statements
+        throw Error(
+          `Unconsistent final balance: ${header.finalBalance} vs ${statements[statements.length - 1].balance}`,
+        );
+      }
       return { header, statements };
     } else {
       throw Error("No header found.");
