@@ -145,7 +145,7 @@ export class PdfParser {
         debitSum: parseFixed(texts[idx + 6]),
         creditSum: parseFixed(texts[idx + 9]),
       };
-      const dtFromStr = header.dtFrom.toISOString().substring(0, 10);
+      const _dtFromStr = header.dtFrom.toISOString().substring(0, 10);
       const _dtToStr = header.dtTo.toISOString().substring(0, 10);
       header.finalBalance = this.roundToTwoDecimals(
         header.initBalance + header.creditSum - header.debitSum,
@@ -310,8 +310,9 @@ export class PdfParser {
   private extractStatementsFromPages(pages: Page[]): ParsedFile {
     let statements: Statement[] = [];
 
-    const header = this.parsePageHeader(pages[0]);
     const len = pages.length;
+    let header: Header | undefined;
+    if (len) header = this.parsePageHeader(pages[0]);
     if (header) {
       let previousBalance = header.initBalance;
       for (let i = 0; i < len; i++) {
