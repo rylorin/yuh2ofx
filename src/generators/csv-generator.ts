@@ -31,6 +31,7 @@ export class CsvGenerator implements Generator {
         result = CsvCategory.Achat;
         break;
       case YuhCategory.Dividend:
+      case YuhCategory.CapitalGain:
         result = CsvCategory.Dividende;
         break;
       default:
@@ -65,8 +66,6 @@ export class CsvGenerator implements Generator {
             // parse ticker symbol, text included between parentheses
             p1 = stmt.memo.indexOf("(");
             p2 = stmt.memo.indexOf(")", p1 + 1);
-            //  const parentheses = stmt.memo.match(/\([A-Z]{1,5}\)/);
-            //   const ticker = parentheses ? parentheses[0].slice(1, -1) : "";
             ticker = stmt.memo.substring(p1 + 1, p2);
             // Security name
             securityName = stmt.payee.substring(stmt.category.length + 1);
@@ -77,13 +76,21 @@ export class CsvGenerator implements Generator {
             // Parse average price after "Prix: XXX "
             p1 = stmt.memo.indexOf("Prix: ");
             p2 = stmt.memo.indexOf(" ", p1 + 6 + 4);
-            price = stmt.memo.substring(p1 + 6 + 4, p2).replace(".", ",");
+            if (p1 >= 0)
+              price = stmt.memo.substring(p1 + 6 + 4, p2).replace(".", ",");
+            else price = "0";
+            // console.log(
+            //   `Parsed price: ${price} from memo: ${stmt.memo} p1: ${p1} p2: ${p2}`,
+            // );
             // Parse Fees from "Commission: XXX "
             p1 = stmt.memo.indexOf("Commission: ");
             p2 = stmt.memo.indexOf(" ", p1 + 12 + 4);
             if (p1 >= 0)
               fees = stmt.memo.substring(p1 + 12 + 4, p2).replace(".", ",");
             else fees = "0";
+            // console.log(
+            //   `Parsed fees: ${fees} from memo: ${stmt.memo} p1: ${p1} p2: ${p2}`,
+            // );
             // Parse Taxe from "Taxe: XXX "
             p1 = stmt.memo.indexOf("Taxe: ");
             p2 = stmt.memo.indexOf(" ", p1 + 6 + 4);
@@ -99,7 +106,9 @@ export class CsvGenerator implements Generator {
       // Convert amount to string
       const amount = `${stmt.amount}`.replace(".", ",");
 
-      // csv += `${stmt.payee}${stmt.memo.length ? " - " + stmt.memo : ""}\n`;
+      // console.log(
+      //   `Parsed statement: ${stmt.date.toISOString()} ${category} ${stmt.reference} ${ticker} ${isin} ${securityName} ${shares} Price: "${price}" Fees: "${fees}" ${taxe} ${amount}`,
+      // );
       if (category)
         csv += `${date};${category};${stmt.reference};${ticker};${isin};${securityName};${shares};${price};${fees};${taxe};${amount};${parsed.header.currency}\n`;
     });

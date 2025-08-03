@@ -35,6 +35,7 @@ export enum YuhCategory {
   Change = "Change de devises automatique",
   SavingsDeposit = "Dépôt d'épargne",
   SavingsWithdrawal = "Retrait d'épargne",
+  CapitalGain = "Gain en capital",
 }
 /**
  * One single statement

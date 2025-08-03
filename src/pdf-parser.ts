@@ -199,6 +199,7 @@ export class PdfParser {
             case YuhCategory.Change:
             case YuhCategory.Buy:
             case YuhCategory.Dividend:
+            case YuhCategory.CapitalGain:
             case YuhCategory.SavingsDeposit:
             case YuhCategory.SavingsWithdrawal:
               payee = category + (stmt[1] ? " " + stmt[1] : "");
