@@ -184,6 +184,7 @@ export class PdfParser {
           let memo: string;
           switch (category) {
             case YuhCategory.Card:
+            case YuhCategory.CardRefund:
               payee = stmt[2];
               memo = category + " " + stmt.slice(1).join(" ");
               break;
@@ -197,6 +198,7 @@ export class PdfParser {
               memo = "";
               break;
             case YuhCategory.Change:
+            case YuhCategory.AutoChange:
             case YuhCategory.Buy:
             case YuhCategory.Dividend:
             case YuhCategory.CapitalGain:

@@ -40,7 +40,8 @@ export function convertEncoding(s: string): string {
     .replaceAll("‡", "à")
     .replaceAll("È", "é")
     .replaceAll("Í", "ê")
-    .replaceAll("Ù", "ô");
+    .replaceAll("Ù", "ô")
+    .replaceAll("…", "É");
 }
 
 /**

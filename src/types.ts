@@ -32,11 +32,14 @@ export enum YuhCategory {
   From = "Virement de",
   To = "Virement à",
   Interests = "Intérêts créditeurs",
-  Change = "Change de devises automatique",
+  Change = "Échange de devises",
+  AutoChange = "Change de devises automatique",
   SavingsDeposit = "Dépôt d'épargne",
   SavingsWithdrawal = "Retrait d'épargne",
   CapitalGain = "Gain en capital",
+  CardRefund = "Remboursement carte de debit",
 }
+
 /**
  * One single statement
  */
