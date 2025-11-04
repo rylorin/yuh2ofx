@@ -20,12 +20,13 @@ export function parseArgs(): CliOptions {
 
   try {
     const options = commandLineArgs(optionDefinitions) as CliOptions;
+    options.format = options.format.toLowerCase() as "ofx" | "csv";
 
     // Validate required arguments
     if (!options.filename) {
       console.error("Error: filename is required");
       console.error(
-        "Usage: yuh2ofx <filename> --currency <currency> [--format <format>]",
+        "Usage: yuh2ofx --currency <currency> [--format <format>]  <filename>",
       );
       console.error("  format: ofx (default) or csv");
       exit(1);
