@@ -5,6 +5,7 @@ export interface CliOptions {
   filename: string;
   currency: string;
   format: "ofx" | "csv";
+  output?: string;
 }
 
 /**
@@ -16,6 +17,7 @@ export function parseArgs(): CliOptions {
     { name: "filename", type: String, defaultOption: true },
     { name: "currency", type: String },
     { name: "format", type: String, defaultValue: "ofx" },
+    { name: "output", type: String },
   ];
 
   try {
@@ -26,7 +28,7 @@ export function parseArgs(): CliOptions {
     if (!options.filename) {
       console.error("Error: filename is required");
       console.error(
-        "Usage: yuh2ofx --currency <currency> [--format <format>]  <filename>",
+        "Usage: yuh2ofx --currency <currency> [--format <format>] [--output <file>]  <filename>",
       );
       console.error("  format: ofx (default) or csv");
       exit(1);
@@ -35,7 +37,7 @@ export function parseArgs(): CliOptions {
     if (!options.currency) {
       console.error("Error: currency is required");
       console.error(
-        "Usage: yuh2ofx <filename> --currency <currency> [--format <format>]",
+        "Usage: yuh2ofx <filename> --currency <currency> [--format <format>] [--output <file>]",
       );
       console.error("  format: ofx (default) or csv");
       exit(1);
@@ -51,9 +53,12 @@ export function parseArgs(): CliOptions {
   } catch (error) {
     console.error("Error parsing command line arguments:", error);
     console.error(
-      "Usage: yuh2ofx <filename> --currency <currency> [--format <format>]",
+      "Usage: yuh2ofx <filename> --currency <currency> [--format <format>] [--output <file>]",
     );
     console.error("  format: ofx (default) or csv");
+    console.error(
+      "  output: output file path (use '-' for stdout, default is stdout)",
+    );
     exit(1);
   }
 }

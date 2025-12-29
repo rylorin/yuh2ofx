@@ -17,17 +17,27 @@ Working for statements reports for the following periods:
 ## Usage
 
 ```bash
-# Convert to OFX format (default)
+# Convert to OFX format (default, output to stdout)
 node build/index.js input.pdf --currency=CHF
 
-# Convert to CSV format for Portfolio Performance
+# Convert to OFX format and save to file
+node build/index.js input.pdf --currency=CHF --output=output.ofx
+
+# Convert to CSV format for Portfolio Performance (output to stdout)
 node build/index.js input.pdf --currency=CHF --format=csv
+
+# Convert to CSV format and save to file
+node build/index.js input.pdf --currency=CHF --format=csv --output=output.csv
+
+# Explicitly use stdout with -
+node build/index.js input.pdf --currency=CHF --output=-
 ```
 
 ### Command Line Options
 
 - `--currency`: Currency code (e.g., CHF, EUR, USD)
 - `--format`: Output format (ofx or csv, defaults to ofx)
+- `--output`: Output file path (use '-' for stdout, defaults to stdout)
 
 ### Output Formats
 

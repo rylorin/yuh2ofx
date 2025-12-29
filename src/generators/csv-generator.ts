@@ -44,7 +44,7 @@ export class CsvGenerator implements Generator {
   public generate(parsed: ParsedFile): string {
     const { statements } = parsed;
     let csv =
-      "Date;Type;Note;Symbole boursier;ISIN;Nom du titre;Parts;Montant brut;Frais;Impôts / Taxes;Valeur;Devise de l'opération\n";
+      "Date;Type;Note;Symbole boursier;ISIN;Nom du titre;Parts;Montant brut en devise;Frais;Impôts / Taxes;Valeur;Devise de l'opération\n";
     statements.forEach((stmt) => {
       let p1: number;
       let p2: number;
