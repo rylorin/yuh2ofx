@@ -17,8 +17,6 @@ class Pdf2Ofx {
   constructor(options: CliOptions) {
     this.parser = new PdfParser(
       options.currency,
-      options.fromDate,
-      options.toDate,
     );
     this.generator =
       options.format === "csv" ?
