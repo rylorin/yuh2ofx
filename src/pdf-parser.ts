@@ -20,7 +20,7 @@ export class PdfParser {
   private readonly integer_pattern: RegExp;
   private readonly currency: string;
 
-  constructor(currency: string) {
+  constructor(currency: string, fromDate?: string, toDate?: string) {
     this.pdfreader = new Pdf2Json();
     this.date_pattern = new RegExp("^[0-3][0-9]\\.[0-1][0-9]\\.202[3-9]$");
     this.fixed_pattern = new RegExp("^[-+]?[0-9]+\\.[0-9][0-9]$");
@@ -194,7 +194,7 @@ export class PdfParser {
               memo = stmt.slice(1).join(" ");
               break;
             case YuhCategory.Interests:
-              payee = stmt[1];
+              payee = stmt[1] ?? category;
               memo = "";
               break;
             case YuhCategory.Change:
@@ -326,37 +326,40 @@ export class PdfParser {
         statements = statements.concat(parsed.statements);
         previousBalance = parsed.finalBalance;
       }
-      // consistency checks
-      const debits =
-        Math.round(
-          statements.reduce(
-            (p, item) =>
-              item.credit == CreditDebit.Credit ? p : p + item.amount,
-            0,
-          ) * 100,
-        ) / 100;
-      const credits =
-        Math.round(
-          statements.reduce(
-            (p, item) =>
-              item.credit == CreditDebit.Credit ? p + item.amount : p,
-            0,
-          ) * 100,
-        ) / 100;
-      if (header.debitSum != debits) {
-        console.error("Unconsistent total debits.", debits, header);
-        throw Error("Unconsistent total debits.");
-      }
-      if (header.creditSum != credits) {
-        console.error("Unconsistent total credits.", credits, header);
-        throw Error("Unconsistent total credits.");
-      }
-      if (header.finalBalance != statements[statements.length - 1].balance) {
-        console.error(header);
-        // Disabled for April 2025 statements
-        throw Error(
-          `Unconsistent final balance: ${header.finalBalance} vs ${statements[statements.length - 1].balance}`,
-        );
+
+      // consistency checks (only if we have statements)
+      if (statements.length > 0) {
+        const debits =
+          Math.round(
+            statements.reduce(
+              (p, item) =>
+                item.credit == CreditDebit.Credit ? p : p + item.amount,
+              0,
+            ) * 100,
+          ) / 100;
+        const credits =
+          Math.round(
+            statements.reduce(
+              (p, item) =>
+                item.credit == CreditDebit.Credit ? p + item.amount : p,
+              0,
+            ) * 100,
+          ) / 100;
+        if (header.debitSum != debits) {
+          console.error("Unconsistent total debits.", debits, header);
+          throw Error("Unconsistent total debits.");
+        }
+        if (header.creditSum != credits) {
+          console.error("Unconsistent total credits.", credits, header);
+          throw Error("Unconsistent total credits.");
+        }
+        if (header.finalBalance != statements[statements.length - 1].balance) {
+          console.error(header);
+          // Disabled for April 2025 statements
+          throw Error(
+            `Unconsistent final balance: ${header.finalBalance} vs ${statements[statements.length - 1].balance}`,
+          );
+        }
       }
       return { header, statements };
     } else {

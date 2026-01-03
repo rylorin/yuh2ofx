@@ -70,7 +70,7 @@ export class OfxGenerator implements Generator {
             <FITID>${stmt.reference}</FITID>
             <NAME>${stmt.payee}</NAME>
 `;
-        if (stmt.memo != stmt.payee)
+        if (stmt.memo.length && stmt.memo != stmt.payee)
           ofx += `            <MEMO>${stmt.memo}</MEMO>
 `;
         ofx += `          </STMTTRN>

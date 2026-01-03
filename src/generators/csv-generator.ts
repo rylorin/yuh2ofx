@@ -6,6 +6,7 @@ enum CsvCategory {
   Dividende = "Dividendes",
   Depot = "Dépôt",
   Retrait = "Retrait",
+  Interests = "Intérêts",
 }
 
 /**
@@ -33,6 +34,9 @@ export class CsvGenerator implements Generator {
       case YuhCategory.Dividend:
       case YuhCategory.CapitalGain:
         result = CsvCategory.Dividende;
+        break;
+      case YuhCategory.Interests:
+        result = CsvCategory.Interests;
         break;
       default:
         if (stmt.credit == CreditDebit.Credit) result = CsvCategory.Depot;

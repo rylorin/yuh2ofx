@@ -15,7 +15,11 @@ class Pdf2Ofx {
   private readonly generator: Generator;
 
   constructor(options: CliOptions) {
-    this.parser = new PdfParser(options.currency);
+    this.parser = new PdfParser(
+      options.currency,
+      options.fromDate,
+      options.toDate,
+    );
     this.generator =
       options.format === "csv" ?
         new CsvGenerator()
@@ -27,15 +31,31 @@ class Pdf2Ofx {
    * @param filename Input file name
    * @returns nothing
    */
-  public async run(filename: string, outputFile?: string): Promise<void> {
+  public async run(options: CliOptions): Promise<void> {
+    const { filename, output, fromDate, toDate } = options;
     try {
       const parsed = await this.parser.parse(filename);
+      if (fromDate) {
+        const dtFrom = new Date(fromDate);
+        parsed.statements = parsed.statements.filter(
+          (item) => item.date >= dtFrom,
+        );
+        parsed.header.dtFrom = dtFrom;
+      }
+      if (toDate) {
+        const dtTo = new Date(toDate);
+        parsed.statements = parsed.statements.filter(
+          (item) => item.date <= dtTo,
+        );
+        parsed.header.dtTo = dtTo;
+      }
+      // console.debug(fromDate, toDate, parsed.header, parsed.statements.length);
       const generatedContent = this.generator.generate(parsed);
 
-      if (outputFile && outputFile !== "-") {
+      if (output && output !== "-") {
         // Write to file
-        writeFileSync(outputFile, generatedContent, "utf8");
-        console.error(`Output written to: ${outputFile}`);
+        writeFileSync(output, generatedContent, "utf8");
+        console.error(`Output written to: ${output}`);
       } else {
         // Write to stdout (default behavior)
         console.log(generatedContent);
@@ -50,7 +70,7 @@ class Pdf2Ofx {
 // Parse command line arguments and run the application
 const options = parseArgs();
 const app = new Pdf2Ofx(options);
-app.run(options.filename, options.output).catch((err: Error) => {
+app.run(options).catch((err: Error) => {
   console.error(err);
   process.exit(1);
 });
