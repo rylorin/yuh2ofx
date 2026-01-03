@@ -20,7 +20,7 @@ export class PdfParser {
   private readonly integer_pattern: RegExp;
   private readonly currency: string;
 
-  constructor(currency: string, fromDate?: string, toDate?: string) {
+  constructor(currency: string) {
     this.pdfreader = new Pdf2Json();
     this.date_pattern = new RegExp("^[0-3][0-9]\\.[0-1][0-9]\\.202[3-9]$");
     this.fixed_pattern = new RegExp("^[-+]?[0-9]+\\.[0-9][0-9]$");
