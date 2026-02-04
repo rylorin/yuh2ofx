@@ -15,9 +15,7 @@ class Pdf2Ofx {
   private readonly generator: Generator;
 
   constructor(options: CliOptions) {
-    this.parser = new PdfParser(
-      options.currency,
-    );
+    this.parser = new PdfParser(options.currency);
     this.generator =
       options.format === "csv" ?
         new CsvGenerator()
