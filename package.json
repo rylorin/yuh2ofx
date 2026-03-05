@@ -23,17 +23,18 @@
     "pdf2json": "^4.0.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/command-line-args": "^5.2.3",
-    "@types/node": "^22.19.8",
-    "eslint": "^9.39.2",
+    "@types/node": "^22.19.13",
+    "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
     "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
+    "lint-staged": "^16.3.2",
     "prettier": "^3.8.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.54.0"
+    "typescript-eslint": "^8.56.1"
   },
   "engines": {
     "node": "^22.21.1"
