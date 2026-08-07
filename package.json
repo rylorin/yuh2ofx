@@ -1,6 +1,6 @@
 {
   "name": "@rylorin/yuh2ofx",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "description": "Convert Yuh statements reports to OFX format  ",
   "repository": "https://github.com/rylorin/yuh2ofx.git",
