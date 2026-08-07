@@ -48,7 +48,7 @@ export class CsvGenerator implements Generator {
   public generate(parsed: ParsedFile): string {
     const { statements } = parsed;
     let csv =
-      "Date;Type;Note;Symbole boursier;ISIN;Nom du titre;Parts;Montant brut en devise;Frais;Impôts / Taxes;Valeur;Devise de l'opération\n";
+      "Date;Type;Note;Symbole boursier;ISIN;Nom du titre;Parts;Montant brut en devise;Frais;Impôts / Taxes;Valeur;Devise de l'opération;Montant brut en devise\n";
     statements.forEach((stmt) => {
       let p1: number;
       let p2: number;
@@ -62,6 +62,7 @@ export class CsvGenerator implements Generator {
       let fees = "";
       let taxe = "";
       let isin = "";
+      let currency = "";
 
       switch (category) {
         case CsvCategory.Achat:
@@ -77,12 +78,13 @@ export class CsvGenerator implements Generator {
             p1 = stmt.memo.indexOf("Quantité: ");
             p2 = stmt.memo.indexOf(" ", p1 + 10);
             shares = stmt.memo.substring(p1 + 10, p2).replace(".", ",");
-            // Parse average price after "Prix: XXX "
+            // Parse average price after "Prix: CUR XXX.XX"
             p1 = stmt.memo.indexOf("Prix: ");
             p2 = stmt.memo.indexOf(" ", p1 + 6 + 4);
-            if (p1 >= 0)
+            if (p1 >= 0) {
+              currency = stmt.memo.substring(p1 + 6, p1 + 6 + 3);
               price = stmt.memo.substring(p1 + 6 + 4, p2).replace(".", ",");
-            else price = "0";
+            } else price = "0";
             // console.log(
             //   `Parsed price: ${price} from memo: ${stmt.memo} p1: ${p1} p2: ${p2}`,
             // );
@@ -114,7 +116,7 @@ export class CsvGenerator implements Generator {
       //   `Parsed statement: ${stmt.date.toISOString()} ${category} ${stmt.reference} ${ticker} ${isin} ${securityName} ${shares} Price: "${price}" Fees: "${fees}" ${taxe} ${amount}`,
       // );
       if (category)
-        csv += `${date};${category};${stmt.reference};${ticker};${isin};${securityName};${shares};${price};${fees};${taxe};${amount};${parsed.header.currency}\n`;
+        csv += `${date};${category};${stmt.reference};${ticker};${isin};${securityName};${shares};${price};${fees};${taxe};${amount};${parsed.header.currency};${currency}\n`;
     });
     return csv;
   }

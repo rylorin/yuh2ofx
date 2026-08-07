@@ -1,12 +1,14 @@
 {
-  "name": "yuh2ofx",
+  "name": "@rylorin/yuh2ofx",
   "version": "0.1.0",
   "private": false,
   "description": "Convert Yuh statements reports to OFX format  ",
   "repository": "https://github.com/rylorin/yuh2ofx.git",
   "license": "MIT",
   "author": "Ronan-Yann Lorin <ryl@free.fr>",
-  "main": "build/index.js",
+  "bin": {
+    "yuh2ofx": "dist/index.js"
+  },
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "clean": "rm -rf build",
@@ -25,18 +27,18 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/command-line-args": "^5.2.3",
-    "@types/node": "^22.19.19",
-    "eslint": "^10.4.1",
+    "@types/node": "^22.20.1",
+    "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.7",
-    "prettier": "^3.8.3",
+    "prettier": "^3.9.6",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.60.1"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0"
   },
   "engines": {
-    "node": "^22.22.3"
+    "node": ">=22.22.3"
   }
 }

@@ -1,40 +1,58 @@
 # yuh2ofx
 
+![Version](https://img.shields.io/github/package-json/v/rylorin/yuh2ofx)
+[![Publish](https://github.com/rylorin/yuh2ofx/actions/workflows/npm-publish.yml/badge.svg)](https://github.com/rylorin/yuh2ofx/actions/workflows/npm-publish.yml)
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
+![Downloads](https://img.shields.io/npm/dt/yuh2ofx.svg)
+
 Convert Yuh statements reports to OFX or CSV format
 
 I use this script to parse PDF statement reports from Yuh Swiss bank
 and generate the corresponding OFX file (that can be imported in accounting app)
 or CSV file (that can be imported in Portfolio Performance).
 
-Working for statements reports for the following periods:
+Expected to working with the following statements reports:
 
 - december 2024
 - all 2025 monthly statements reports
 - 2025 yearly statements report
+- all 2026 monthly statements reports
 
-## Usage
+## 📌 Prerequisites
+
+- [Node.js](https://nodejs.org/) (v22 or higher recommended)
+
+## 🚀 Installation & Usage
+
+### Installation
+
+No installation is required, `npx` will download and install on the fly the latest release of the package.
+
+### Usage
+
+To run `yuh2ofx` from the **system command line prompt** (not from the Node.js REPL), use the following command:
 
 ```bash
 # Convert to OFX format (default, output to stdout)
-node build/index.js input.pdf --currency=CHF
+npx yuh2ofx input.pdf --currency=CHF
 
 # Convert to OFX format and save to file
-node build/index.js input.pdf --currency=CHF --output=output.ofx
+npx yuh2ofx input.pdf --currency=CHF --output=output.ofx
 
 # Convert to CSV format for Portfolio Performance (output to stdout)
-node build/index.js input.pdf --currency=CHF --format=csv
+npx yuh2ofx input.pdf --currency=CHF --format=csv
 
 # Convert to CSV format and save to file
-node build/index.js input.pdf --currency=CHF --format=csv --output=output.csv
+npx yuh2ofx input.pdf --currency=CHF --format=csv --output=output.csv
 
 # Explicitly use stdout with -
-node build/index.js input.pdf --currency=CHF --output=-
+npx yuh2ofx input.pdf --currency=CHF --output=-
 
 # Filter transactions by date range
-node build/index.js input.pdf --currency=CHF --fromDate=2024-12-01 --toDate=2024-12-31
+npx yuh2ofx input.pdf --currency=CHF --fromDate=2024-12-01 --toDate=2024-12-31
 
 # Filter and save to file
-node build/index.js input.pdf --currency=CHF --fromDate=2024-12-01 --toDate=2024-12-31 --output=filtered.ofx
+npx yuh2ofx input.pdf --currency=CHF --fromDate=2024-12-01 --toDate=2024-12-31 --output=filtered.ofx
 ```
 
 ### Command Line Options

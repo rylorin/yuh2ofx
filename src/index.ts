@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { writeFileSync } from "node:fs";
 import { CliOptions, parseArgs } from "./cli";
 import { CsvGenerator } from "./generators/csv-generator";
