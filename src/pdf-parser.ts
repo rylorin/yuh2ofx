@@ -6,12 +6,7 @@ import {
   type ParsedFile,
   type Statement,
 } from "./types";
-import {
-  convertEncoding,
-  hashObject,
-  parseFixed,
-  string2date,
-} from "./utils";
+import { convertEncoding, hashObject, parseFixed, string2date } from "./utils";
 
 const STATEMENTS_REPORT_HEADER = "Extrait de compte en";
 

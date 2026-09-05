@@ -133,3 +133,4 @@ dist
 build/
 config/local*
 docker-env-file
+/.claude/

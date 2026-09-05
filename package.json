@@ -16,12 +16,16 @@
     "build": "tsc --project tsconfig.json",
     "clean": "rm -rf dist",
     "dev": "NODE_ENV=development ts-node-dev --project tsconfig.json src/index",
-    "lint": "eslint ./src",
+    "lint": "prettier --check . && eslint ./src",
     "prepublishOnly": "yarn build",
-    "qc": "yarn lint && yarn type-check && prettier --check .",
+    "qc": "yarn lint && yarn type-check",
     "start": "NODE_ENV=production node dist/index.js",
     "test": "yarn qc",
     "type-check": "tsc --noEmit"
+  },
+  "lint-staged": {
+    "*.ts": "yarn lint",
+    "*.{ts,json,md}": "prettier --check"
   },
   "dependencies": {
     "command-line-args": "^6.0.2",
