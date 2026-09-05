@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import { writeFileSync } from "node:fs";
-import { CliOptions, parseArgs } from "./cli";
+import { parseArgs, type CliOptions } from "./cli";
 import { CsvGenerator } from "./generators/csv-generator";
-import { Generator } from "./generators/generator";
+import type { Generator } from "./generators/generator";
 import { OfxGenerator } from "./generators/ofx-generator";
 import { PdfParser } from "./pdf-parser";
 

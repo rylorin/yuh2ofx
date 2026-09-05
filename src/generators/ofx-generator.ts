@@ -1,5 +1,5 @@
-import { CreditDebit, ParsedFile } from "../types";
-import { Generator } from "./generator";
+import { CreditDebit, type ParsedFile } from "../types";
+import type { Generator } from "./generator";
 
 /**
  * OFX file format generator

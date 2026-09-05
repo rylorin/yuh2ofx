@@ -1,4 +1,4 @@
-import { ParsedFile } from "../types";
+import type { ParsedFile } from "../types";
 
 /**
  * Interface for file format generators

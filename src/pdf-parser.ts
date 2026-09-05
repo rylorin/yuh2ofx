@@ -1,12 +1,17 @@
-import { Page, default as Pdf2Json } from "pdf2json";
+import { default as Pdf2Json, type Page } from "pdf2json";
 import {
   CreditDebit,
-  Header,
-  ParsedFile,
-  Statement,
   YuhCategory,
+  type Header,
+  type ParsedFile,
+  type Statement,
 } from "./types";
-import { convertEncoding, hashObject, parseFixed, string2date } from "./utils";
+import {
+  convertEncoding,
+  hashObject,
+  parseFixed,
+  string2date,
+} from "./utils";
 
 const STATEMENTS_REPORT_HEADER = "Extrait de compte en";
 

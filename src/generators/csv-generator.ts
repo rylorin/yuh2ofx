@@ -1,5 +1,10 @@
-import { CreditDebit, ParsedFile, Statement, YuhCategory } from "../types";
-import { Generator } from "./generator";
+import {
+  CreditDebit,
+  YuhCategory,
+  type ParsedFile,
+  type Statement,
+} from "../types";
+import type { Generator } from "./generator";
 
 enum CsvCategory {
   Achat = "Achat",
