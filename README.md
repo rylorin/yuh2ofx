@@ -3,7 +3,7 @@
 ![Version](https://img.shields.io/github/package-json/v/rylorin/yuh2ofx)
 [![Publish](https://github.com/rylorin/yuh2ofx/actions/workflows/npm-publish.yml/badge.svg)](https://github.com/rylorin/yuh2ofx/actions/workflows/npm-publish.yml)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
-![Downloads](https://img.shields.io/npm/dt/yuh2ofx.svg)
+![Downloads](https://img.shields.io/npm/dt/@rylorin/yuh2ofx.svg)
 
 Convert Yuh statements reports to OFX or CSV format
 
