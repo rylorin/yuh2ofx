@@ -1,3 +1,10 @@
+// typescript-eslint fait require("typescript") codé en dur mais ne supporte pas encore
+// TS 7 (issue typescript-eslint#10940). On redirige donc la résolution du module
+// "typescript" vers l'API TS 6 (@typescript/typescript6) via eslint-ts6-resolution.mjs.
+// Ce hack doit être importé AVANT "typescript-eslint" (les imports ESM sont évalués
+// dans l'ordre de déclaration). Le binaire `tsc` (TS 7) reste utilisé par build/type-check.
+import "./eslint-ts6-resolution.mjs";
+
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 
