@@ -29,24 +29,24 @@
   },
   "dependencies": {
     "command-line-args": "^6.0.2",
-    "pdf2json": "^4.0.3"
+    "pdf2json": "^4.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/command-line-args": "^5.2.3",
     "@types/node": "^22.20.1",
     "@typescript/typescript6": "^6.0.2",
-    "eslint": "^10.10.0",
+    "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
     "husky": "^9.1.7",
-    "lint-staged": "^17.5.0",
-    "prettier": "^3.9.6",
-    "tsx": "^4.0.0",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "typescript-eslint": "^8.69.0"
+    "typescript-eslint": "^8.71.0"
   },
   "engines": {
-    "node": ">=22.22.3"
+    "node": ">=22.23.3"
   }
 }
