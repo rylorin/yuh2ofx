@@ -25,7 +25,7 @@ The parser is expected to work with:
 ## Tech Stack & Tooling
 
 - **Language:** TypeScript (strict), target **ES2021**, `module`/`moduleResolution` = **NodeNext** (emits **CommonJS**, since `package.json` has no `"type": "module"`). The project is prepared for a future **TypeScript 7 / tsgo** upgrade — see the TS7 section below.
-- **Runtime:** Node.js **>= 22.22.3** (pinned in CI to 22.22.3).
+- **Runtime:** Node.js **>= 22.23**.
 - **Package manager:** Yarn (classic v1 — `yarn.lock`).
 - **Key dependencies:**
   - `pdf2json` (^4.0.3) — PDF → JSON text extraction. Default import is `Pdf2Json`; the `Page` type is exported.
@@ -35,7 +35,7 @@ The parser is expected to work with:
 
 ## Project Structure
 
-```
+```text
 src/
   index.ts                        # Entry point (#! /usr/bin/env node). Pdf2Ofx orchestrator.
   cli.ts                          # CliOptions interface + parseArgs() (CLI arg parsing & validation)
@@ -78,7 +78,7 @@ The codebase has been migrated off the deprecated module-resolution path so it c
 
 ## CLI Usage
 
-```
+```bash
 yuh2ofx <filename> --currency <CUR> [--format ofx|csv] [--output <file>] [--fromDate <date>] [--toDate <date>]
 ```
 
@@ -183,7 +183,7 @@ Strict type-aware rules are enabled: `no-floating-promises`, `no-misused-promise
 
 ## CI / Publishing
 
-- **`qc.yml`** — on push (ignoring README/LICENSE/build workflow): `yarn install --frozen-lockfile` → `yarn lint` → `yarn test`. Node 22.22.3, Yarn cache. Timeout 3 min.
+- **`qc.yml`** — on push (ignoring README/LICENSE/build workflow): `yarn install --frozen-lockfile` → `yarn lint` → `yarn test`. Node 22, Yarn cache. Timeout 3 min.
 - **`npm-publish.yml`** — on GitHub release **or** push to `main`: install → `yarn build` → auto version-bump (`phips28/gh-action-bump-version`) → `npm publish` with `NPM_TOKEN`.
 - Publishing requires `package.json` version changes to be intentional; the version-bump action handles it for pushes to main.
 - Commit messages use a conventional style (see git history: "Currency added to CSV export", "packages upgrade", etc.) and end with a `Co-Authored-By: Claude Code <noreply@anthropic.com>` trailer when Claude-authored.

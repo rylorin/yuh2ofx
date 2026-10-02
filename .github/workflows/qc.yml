@@ -18,14 +18,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.22.3
+          node-version: 22
           cache: "yarn" # caches the yarn cache folder not node_modules
 
       - name: Install packages
         run: yarn install --frozen-lockfile
 
       - name: Lint test
-        run: yarn lint
-
-      - name: Run tests
-        run: yarn test
+        run: yarn qc
